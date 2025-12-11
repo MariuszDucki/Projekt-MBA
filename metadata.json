@@ -1,0 +1,7 @@
+{
+  "name": "DELOS-AI ",
+  "description": "Industrial AI Assistant for Maintenance and Safety Protocols.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DELOS-AI Training Core</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        /* DEFAULT (DARK / WARM / STONE) */
+        --bg-primary: #0c0a09; /* Stone 950 */
+        --bg-panel: rgba(28, 25, 23, 0.7);   /* Stone 900 + Glass */
+        --bg-paper: rgba(0, 0, 0, 0.4);      /* Darker background for text areas */
+        --bg-bubble-user: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(6, 182, 212, 0.05) 100%);
+        --bg-bubble-system: linear-gradient(135deg, rgba(40, 40, 40, 0.7) 0%, rgba(20, 20, 20, 0.8) 100%);
+        --border-color: #44403c; /* Stone 700 */
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --accent-color: #06b6d4; /* Cyan 500 */
+        --text-primary: #f5f5f4; /* Stone 100 */
+        --text-secondary: #e7e5e4; /* Stone 200 - High legibility */
+        --text-muted: #a8a29e;   /* Stone 400 */
+        --panel-hover: rgba(6, 182, 212, 0.08);
+        --glow-color: rgba(6, 182, 212, 0.25);
+        --overlay-bg: rgba(0, 0, 0, 0.9);
+        
+        /* Deep Atmospheric Shadow for Dark Mode */
+        --shadow-3d: 
+            0 4px 6px -1px rgba(0, 0, 0, 0.3), 
+            0 10px 15px -3px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      }
+
+      /* LIGHT THEME (HIGH CONTRAST / LABORATORY INDUSTRIAL) */
+      .light-theme {
+        --bg-primary: #f8fafc; /* Slate 50 - Very clean white-grey */
+        --bg-panel: rgba(255, 255, 255, 0.95);   /* Solid White Glass */
+        --bg-paper: #ffffff;    /* Pure white */
+        --bg-bubble-user: linear-gradient(135deg, rgba(224, 242, 254, 1) 0%, rgba(240, 249, 255, 1) 100%); /* Sky 100 */
+        --bg-bubble-system: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); /* Slate 100-200 */
+        --border-color: #cbd5e1; /* Slate 300 - Visible but subtle border */
+        --glass-border: rgba(148, 163, 184, 0.4); /* Slate 400 */
+        --accent-color: #0891b2; /* Cyan 600 - Darker/Rich for contrast */
+        --text-primary: #0f172a; /* Slate 900 - Deep Navy/Black */
+        --text-secondary: #334155; /* Slate 700 */
+        --text-muted: #64748b;   /* Slate 500 */
+        --panel-hover: rgba(8, 145, 178, 0.05);
+        --glow-color: rgba(8, 145, 178, 0.15);
+        --overlay-bg: rgba(241, 245, 249, 0.8);
+        
+        /* Crisp, Technical Shadow for Light Mode */
+        --shadow-3d: 
+            0 10px 15px -3px rgba(148, 163, 184, 0.1),
+            0 4px 6px -2px rgba(148, 163, 184, 0.05),
+            0 0 0 1px rgba(226, 232, 240, 1); /* Hard ring for definition */
+      }
+
+      body {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        overflow: hidden;
+        transition: background-color 0.5s ease, color 0.5s ease;
+        background-image: 
+            radial-gradient(circle at 15% 50%, var(--panel-hover) 0%, transparent 25%),
+            radial-gradient(circle at 85% 30%, var(--panel-hover) 0%, transparent 25%);
+      }
+
+      /* Subtler Float Animation */
+      @keyframes float-subtle {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-4px); }
+      }
+
+      .animate-float {
+        animation: float-subtle 6s ease-in-out infinite;
+      }
+      
+      .animate-float-delayed {
+        animation: float-subtle 7s ease-in-out infinite;
+        animation-delay: 1.5s;
+      }
+
+      /* Selection Color */
+      ::selection {
+        background: var(--accent-color);
+        color: #ffffff;
+      }
+
+      /* Dynamic Markdown Styles */
+      .markdown-content {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        font-size: 0.95rem;
+        word-wrap: break-word;
+      }
+      .markdown-content strong {
+        font-weight: 700;
+        color: var(--accent-color);
+      }
+      .markdown-content ul {
+        list-style-type: none;
+        padding-left: 0;
+        margin-top: 0.5em;
+      }
+      .markdown-content ul li {
+        position: relative;
+        padding-left: 1.2em;
+        margin-bottom: 0.25em;
+      }
+      .markdown-content ul li::before {
+        content: "▹";
+        position: absolute;
+        left: 0;
+        color: var(--accent-color);
+        font-weight: bold;
+      }
+      .markdown-content ol {
+        list-style-type: decimal;
+        padding-left: 1.5em;
+        margin-top: 0.5em;
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+        font-weight: 700;
+        margin-top: 1.2em;
+        margin-bottom: 0.6em;
+        color: var(--text-primary); 
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.2em;
+        display: inline-block;
+      }
+      .markdown-content h3 {
+         color: var(--accent-color);
+      }
+      .markdown-content code {
+        background: var(--panel-hover);
+        padding: 0.1em 0.3em;
+        border-radius: 0.2em;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--border-color);
+        color: var(--accent-color);
+        font-weight: 600;
+      }
+      /* Adaptive Code Blocks */
+      .markdown-content pre {
+        background: var(--bg-paper); /* Changed from hardcoded dark */
+        color: var(--text-primary);     
+        padding: 1em;
+        border-radius: 0.3em;
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+        margin: 1em 0;
+      }
+
+      /* --- TABLE STYLES (TECHNICAL READOUT) --- */
+      .markdown-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.5em;
+        margin-bottom: 1.5em;
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.8rem;
+        background: var(--bg-paper); 
+        display: block;
+        overflow-x: auto; 
+        white-space: nowrap; 
+        border: 1px solid var(--border-color);
+      }
+      
+      .markdown-content thead {
+        background-color: var(--panel-hover);
+        border-bottom: 2px solid var(--accent-color);
+      }
+
+      .markdown-content th {
+        padding: 10px 14px;
+        text-align: left;
+        color: var(--accent-color);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: bold;
+        border-right: 1px solid var(--border-color);
+      }
+      
+      .markdown-content td {
+        border: 1px solid var(--border-color);
+        padding: 8px 14px;
+        color: var(--text-primary);
+      }
+      
+      .markdown-content tr:nth-child(even) {
+        background-color: var(--panel-hover);
+      }
+
+      .markdown-content tr:hover td {
+        background-color: var(--accent-color);
+        color: #fff; 
+        cursor: crosshair;
+      }
+      
+      /* Blockquote style for warnings */
+      .markdown-content blockquote {
+        border-left: 4px solid var(--accent-color);
+        padding-left: 1em;
+        margin: 1em 0;
+        font-style: italic;
+        color: var(--text-primary);
+        background: linear-gradient(90deg, var(--panel-hover), transparent);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-color); 
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-color); 
+      }
+      
+      /* CRT Overlay Effect - Toned down for Light Mode in CSS logic via class */
+      .crt-overlay {
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.02) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+        background-size: 100% 3px, 3px 100%;
+        pointer-events: none;
+        mix-blend-mode: overlay;
+        z-index: 9999;
+        opacity: 0.8;
+      }
+      .light-theme .crt-overlay {
+        opacity: 0.1; /* Almost invisible scanlines in light mode */
+      }
+
+      /* Utility for Glass Panels */
+      .glass-panel {
+        background: var(--bg-panel);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-3d);
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['"Share Tech Mono"', 'monospace'],
+              sans: ['"Rajdhani"', 'sans-serif'],
+            },
+            colors: {
+              west: {
+                bg: 'var(--bg-primary)',
+                panel: 'var(--bg-panel)',
+                paper: 'var(--bg-paper)',
+                border: 'var(--border-color)',
+                glassBorder: 'var(--glass-border)',
+                accent: 'var(--accent-color)',
+                text: 'var(--text-primary)',
+                secondary: 'var(--text-secondary)',
+                muted: 'var(--text-muted)',
+                hover: 'var(--panel-hover)',
+                overlay: 'var(--overlay-bg)',
+                // Static alert colors
+                alert: '#ef4444', 
+                warn: '#f59e0b', 
+              }
+            },
+            boxShadow: {
+              'glow': '0 0 15px var(--glow-color)',
+              'glow-lg': '0 0 30px var(--glow-color)',
+              'inset-glow': 'inset 0 0 20px var(--glow-color)',
+              '3d': 'var(--shadow-3d)',
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'scanline': 'scanline 8s linear infinite',
+              'spin-slow': 'spin 12s linear infinite',
+              'float': 'float-subtle 6s ease-in-out infinite',
+            },
+            keyframes: {
+              scanline: {
+                '0%': { transform: 'translateY(-100%)' },
+                '100%': { transform: 'translateY(100%)' }
+              },
+              'float-subtle': {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-4px)' }
+              }
+            }
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
+    "pdfjs-dist": "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/+esm",
+    "mammoth": "https://cdn.jsdelivr.net/npm/mammoth@1.8.0/+esm",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs",
+    "jszip": "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <div class="crt-overlay fixed inset-0 w-full h-full pointer-events-none"></div>
+  </body>
+</html>
