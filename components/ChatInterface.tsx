@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Cpu, FileSearch, Volume2, StopCircle, Image as ImageIcon, X, Loader2, Ticket as TicketIcon, Paperclip, PlayCircle, Maximize2, ChevronLeft, ChevronRight, History, RotateCcw, CheckSquare, BarChart3, ArrowDown, Zap, ShieldAlert, BookOpen, Globe, FileDiff, ArrowRightLeft, ThumbsUp, ThumbsDown, RefreshCw, Signal, Terminal, Sparkles, Box, LayoutGrid } from 'lucide-react';
-import { Message, MessageRole, WidgetData } from '../types';
+import { Send, Mic, MicOff, Volume2, StopCircle, X, Loader2, Ticket as TicketIcon, Paperclip, ChevronLeft, ChevronRight, RotateCcw, CheckSquare, BarChart3, ArrowDown, Sparkles, GraduationCap, Trophy, HelpCircle, ShieldAlert, ThumbsUp, ThumbsDown, Copy, Check, FileSearch } from 'lucide-react';
+import { Message, MessageRole, WidgetData, QuizData } from '../types';
 import { sendMessageToGemini, initChat, generateVoiceAudio, clearChatHistory, loadChatHistory, saveChatHistory, submitMessageFeedback } from '../services/geminiService';
 import Markdown from 'react-markdown';
 // @ts-ignore
@@ -39,6 +39,80 @@ const ChecklistWidget = ({ data, title }: { data: string[], title: string }) => 
                         <span className={`text-sm font-mono ${checkedItems[idx] ? 'text-west-muted line-through' : 'text-west-text'}`}>{item}</span>
                     </div>
                 ))}
+            </div>
+        </div>
+    );
+};
+
+const QuizWidget = ({ data, title }: { data: QuizData, title: string }) => {
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [isSubmitted, setIsSubmitted] = useState(false);
+    
+    const handleSelect = (id: string) => {
+        if (isSubmitted) return;
+        setSelectedOption(id);
+    };
+
+    const handleSubmit = () => {
+        setIsSubmitted(true);
+    };
+
+    const isCorrect = selectedOption ? data.options.find(o => o.id === selectedOption)?.isCorrect : false;
+
+    return (
+        <div className="mt-4 mb-2 bg-west-paper border border-west-border rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 max-w-xl shadow-lg backdrop-blur-md">
+            <div className="bg-purple-500/10 px-4 py-3 border-b border-purple-500/30 flex justify-between items-center">
+                <h4 className="text-xs font-mono font-bold text-purple-400 uppercase flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4" /> {title}
+                </h4>
+            </div>
+            <div className="p-5">
+                <p className="text-sm font-sans text-west-text font-bold mb-4">{data.question}</p>
+                
+                <div className="space-y-2 mb-4">
+                    {data.options.map((option) => {
+                        let btnClass = "border-west-border hover:bg-west-hover text-west-text";
+                        if (selectedOption === option.id) {
+                            btnClass = "border-west-accent bg-west-accent/10 text-west-accent";
+                        }
+                        if (isSubmitted) {
+                            if (option.isCorrect) btnClass = "border-green-500 bg-green-500/20 text-green-500";
+                            else if (selectedOption === option.id && !option.isCorrect) btnClass = "border-red-500 bg-red-500/20 text-red-500";
+                            else btnClass = "border-west-border opacity-50";
+                        }
+
+                        return (
+                            <button
+                                key={option.id}
+                                onClick={() => handleSelect(option.id)}
+                                disabled={isSubmitted}
+                                className={`w-full p-3 text-left text-sm rounded-lg border transition-all flex justify-between items-center ${btnClass}`}
+                            >
+                                <span>{option.text}</span>
+                                {isSubmitted && option.isCorrect && <CheckSquare className="w-4 h-4" />}
+                                {isSubmitted && selectedOption === option.id && !option.isCorrect && <X className="w-4 h-4" />}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {!isSubmitted ? (
+                    <button 
+                        onClick={handleSubmit}
+                        disabled={!selectedOption}
+                        className="w-full py-2 bg-west-accent text-black font-bold text-xs rounded hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-mono"
+                    >
+                        SPRAWDŹ ODPOWIEDŹ
+                    </button>
+                ) : (
+                    <div className={`p-3 rounded-lg border text-xs ${isCorrect ? 'bg-green-500/10 border-green-500/30 text-green-500' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>
+                        <div className="flex items-center gap-2 font-bold mb-1">
+                            {isCorrect ? <Trophy className="w-4 h-4" /> : <HelpCircle className="w-4 h-4" />}
+                            {isCorrect ? "BRAWO! PRAWIDŁOWA ODPOWIEDŹ" : "NIESTETY, TO NIE JEST POPRAWNA ODPOWIEDŹ"}
+                        </div>
+                        <p className="opacity-90">{data.explanation}</p>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -128,7 +202,7 @@ const TicketCard = ({ ticket }: { ticket: any }) => (
     <div className="mt-4 mb-2 p-0 bg-west-paper border border-west-border rounded-xl overflow-hidden max-w-lg shadow-md backdrop-blur-sm">
         <div className="bg-west-warn/5 p-3 flex justify-between items-center border-b border-west-border/30">
             <span className="font-mono text-xs font-bold text-west-warn uppercase flex items-center gap-2">
-                <TicketIcon className="w-4 h-4" /> TICKET #{ticket.id}
+                <TicketIcon className="w-4 h-4" /> REQ #{ticket.id}
             </span>
              <span className={`text-[10px] px-2 py-0.5 border rounded-full font-mono bg-west-bg/50 ${ticket.priority === 'CRITICAL' ? 'text-red-500 border-red-500' : 'text-west-warn border-west-warn'}`}>
                 {ticket.priority}
@@ -136,11 +210,11 @@ const TicketCard = ({ ticket }: { ticket: any }) => (
         </div>
         <div className="p-4">
              <div className="grid grid-cols-2 gap-4 text-xs font-mono text-west-text mb-2">
-                <div><span className="text-west-muted opacity-70 mr-2">LOC:</span>{ticket.location}</div>
+                <div><span className="text-west-muted opacity-70 mr-2">DEST:</span>EXPERT_TEAM</div>
                 <div><span className="text-west-muted opacity-70 mr-2">STATUS:</span>{ticket.status}</div>
              </div>
-             <div className="text-sm text-west-text font-sans leading-relaxed">
-                {ticket.description}
+             <div className="text-sm text-west-text font-sans leading-relaxed italic opacity-80">
+                "Użytkownik zgłosił brak wiedzy lub problem: {ticket.description}"
              </div>
         </div>
     </div>
@@ -149,16 +223,16 @@ const TicketCard = ({ ticket }: { ticket: any }) => (
 const WELCOME_MESSAGE: ExtendedMessage = {
     id: 'welcome',
     role: MessageRole.MODEL,
-    text: 'Witaj w systemie DELOS-AI. Jestem gotowy do wsparcia operacyjnego. Prześlij zgłoszenie, zapytaj o procedurę lub załącz zdjęcie do analizy.',
+    text: 'Cześć! Jestem Twoim Asystentem Szkoleniowym DELOS. Pomogę Ci wdrożyć się w nowe obowiązki, znaleźć procedury i sprawdzić wiedzę. W czym mogę pomóc?',
     timestamp: Date.now()
 };
 
 // --- MODERN GLASS CARDS FOR PROMPTS ---
 const QuickPrompts = ({ onSelect }: { onSelect: (text: string) => void }) => {
     const prompts = [
-        { label: "STATUS SYSTEMU", icon: BarChart3, text: "Podaj status wszystkich systemów i ewentualne ostrzeżenia." },
-        { label: "ZGŁOŚ AWARIĘ", icon: ShieldAlert, text: "Chcę zgłosić awarię na Linii 3. Priorytet wysoki." },
-        { label: "PROCEDURA BHP", icon: BookOpen, text: "Wyświetl procedurę bezpieczeństwa dla pracy na wysokości." },
+        { label: "ONBOARDING", icon: GraduationCap, text: "Rozpocznij proces onboardingu dla nowego pracownika produkcji." },
+        { label: "INSTRUKCJE BHP", icon: ShieldAlert, text: "Pokaż instrukcje postępowania w przypadku pożaru." },
+        { label: "SPRAWDŹ WIEDZĘ", icon: Trophy, text: "Zrób mi szybki quiz z zakresu bezpieczeństwa." },
     ];
 
     return (
@@ -198,7 +272,7 @@ const ChatInterfaceWrapper: React.FC<{showToast?: (msg: string) => void}> = ({sh
     const handleReset = () => {
         clearChatHistory();
         setResetKey(prev => prev + 1);
-        if (showToast) showToast("Memory Core Purged");
+        if (showToast) showToast("Session Reset");
     };
     return <ChatSession key={resetKey} onSessionReset={handleReset} />;
 };
@@ -213,7 +287,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null); 
   
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -222,6 +296,8 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -332,7 +408,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
       const errorMsg: ExtendedMessage = {
           id: Date.now().toString(),
           role: MessageRole.SYSTEM,
-          text: "Błąd połączenia z siecią neuronową.",
+          text: "Przepraszam, chwilowy problem z połączeniem. Spróbujmy jeszcze raz.",
           timestamp: Date.now(),
           isError: true
       };
@@ -343,8 +419,9 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
   };
 
   const handleFeedback = (msgId: string, isPositive: boolean) => {
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, feedback: isPositive ? 'positive' : 'negative' } : m));
-      saveChatHistory(messages); // Update storage
+      const updatedMessages = messages.map(m => m.id === msgId ? { ...m, feedback: isPositive ? 'positive' : 'negative' } as ExtendedMessage : m);
+      setMessages(updatedMessages);
+      saveChatHistory(updatedMessages);
       submitMessageFeedback(msgId, isPositive);
   };
 
@@ -353,12 +430,22 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
       if (inputRef.current) inputRef.current.focus();
   };
 
+  const handleCopy = (text: string, id: string) => {
+      navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+  };
+
   // --- IMPROVED AUDIO PLAYBACK ---
-  const playResponseAudio = async (text: string) => {
-    if (isPlayingAudio) {
+  const playResponseAudio = async (text: string, msgId: string) => {
+    // If clicking same button, toggle off
+    if (playingMessageId === msgId) {
         stopAudio();
         return;
     }
+    
+    // Stop any current audio
+    stopAudio();
     
     if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -366,7 +453,9 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
     const audioCtx = audioContextRef.current;
     if (audioCtx.state === 'suspended') await audioCtx.resume();
 
+    setPlayingMessageId(msgId);
     setIsAudioLoading(true);
+    
     const pcmBuffer = await generateVoiceAudio(text);
     setIsAudioLoading(false);
 
@@ -388,27 +477,29 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
             source.buffer = audioBuffer;
             source.connect(audioCtx.destination);
             source.onended = () => {
-                setIsPlayingAudio(false);
+                setPlayingMessageId(null);
                 audioSourceRef.current = null;
             };
             audioSourceRef.current = source;
             source.start();
-            setIsPlayingAudio(true);
         } catch (e) {
             console.error("Audio Playback Error:", e);
-            setIsPlayingAudio(false);
+            setPlayingMessageId(null);
         }
     } else {
-        setIsPlayingAudio(false);
+        setPlayingMessageId(null);
     }
   };
 
   const stopAudio = () => {
     if (audioSourceRef.current) {
+        // Remove listener to prevent state update race condition
+        audioSourceRef.current.onended = null;
         audioSourceRef.current.stop();
         audioSourceRef.current = null;
     }
-    setIsPlayingAudio(false);
+    setPlayingMessageId(null);
+    setIsAudioLoading(false);
   };
 
   const toggleListening = () => {
@@ -458,7 +549,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
         <div className="absolute top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
             <div className="bg-west-panel/80 backdrop-blur-md px-4 py-2 rounded-full border border-west-border shadow-lg flex items-center gap-3 pointer-events-auto">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-mono font-bold tracking-widest text-west-text">NEURAL_LINK_V2.0</span>
+                <span className="text-[10px] font-mono font-bold tracking-widest text-west-text">TRAINING_MODE::ACTIVE</span>
             </div>
             
             <button 
@@ -481,13 +572,13 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                         <div className="absolute inset-0 bg-west-accent blur-[60px] opacity-20 animate-pulse-slow"></div>
                         {/* Static Welcome Card */}
                         <div className="relative z-10 bg-west-panel/60 border border-west-accent/30 p-10 rounded-3xl shadow-3d backdrop-blur-xl hover:scale-[1.02] transition-transform duration-500">
-                            <Cpu className="w-24 h-24 text-west-accent drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                            <GraduationCap className="w-24 h-24 text-west-accent drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
                         </div>
                     </div>
                     
                     <div className="text-center space-y-2 relative z-10">
-                        <h2 className="text-4xl font-sans font-bold tracking-tight text-west-text drop-shadow-sm">SYSTEM READY</h2>
-                        <p className="font-mono text-west-accent text-sm tracking-widest uppercase opacity-80">Awaiting Neural Input...</p>
+                        <h2 className="text-4xl font-sans font-bold tracking-tight text-west-text drop-shadow-sm">DELOS ACADEMY</h2>
+                        <p className="font-mono text-west-accent text-sm tracking-widest uppercase opacity-80">Wybierz temat szkolenia...</p>
                     </div>
 
                     <QuickPrompts onSelect={handleQuickPrompt} />
@@ -497,6 +588,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
             {messages.length > 1 && messages.map((msg, idx) => {
                 if (idx === 0) return null;
                 const isUser = msg.role === MessageRole.USER;
+                const isPlaying = playingMessageId === msg.id;
                 
                 return (
                     <div 
@@ -523,7 +615,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                             {/* Role Label */}
                             <div className={`mb-3 flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} opacity-60`}>
                                 <span className={`text-[10px] font-mono font-bold tracking-widest ${isUser ? 'text-west-accent' : 'text-west-muted'}`}>
-                                    {isUser ? 'OPERATOR' : 'SYSTEM_CORE'}
+                                    {isUser ? 'PRACOWNIK' : 'MENTOR AI'}
                                 </span>
                             </div>
 
@@ -544,6 +636,9 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                                 <div className="relative z-10 mt-6">
                                     {msg.widget && msg.widget.type === 'checklist' && <ChecklistWidget data={msg.widget.data} title={msg.widget.title} />}
                                     {msg.widget && msg.widget.type === 'telemetry' && <TelemetryWidget data={msg.widget.data} title={msg.widget.title} />}
+                                    {/* NEW QUIZ WIDGET */}
+                                    {msg.widget && msg.widget.type === 'quiz' && <QuizWidget data={msg.widget.data} title={msg.widget.title} />}
+                                    
                                     {msg.ticketPayload && <TicketCard ticket={msg.ticketPayload} />}
                                     {msg.mediaPayload && <MediaCarousel urls={msg.mediaPayload.urls} type={msg.mediaPayload.type} />}
                                     
@@ -560,12 +655,65 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                                 </div>
                             )}
 
-                            {/* Action Buttons (System Only) */}
+                            {/* PERSISTENT FOOTER ACTIONS (System Only) */}
                             {!isUser && (
-                                <div className="absolute -right-12 top-0 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                    <button onClick={() => playResponseAudio(msg.text)} className="p-2 bg-west-panel/80 border border-west-border rounded-full hover:border-west-accent hover:text-west-accent text-west-muted shadow-lg backdrop-blur-md">
-                                        {isPlayingAudio ? <StopCircle className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                                    </button>
+                                <div className="relative z-10 mt-5 pt-3 border-t border-west-border/30 flex justify-between items-center animate-in fade-in duration-500 delay-200">
+                                    
+                                    {/* TTS Button with Visualization */}
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => playResponseAudio(msg.text, msg.id)} 
+                                            disabled={isAudioLoading && !isPlaying}
+                                            className={`
+                                                flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[10px] font-mono font-bold
+                                                ${isPlaying 
+                                                    ? 'bg-west-accent text-black border-west-accent shadow-[0_0_10px_rgba(6,182,212,0.4)]' 
+                                                    : 'bg-west-panel/50 border-west-border text-west-muted hover:text-west-accent hover:border-west-accent/50'}
+                                            `}
+                                        >
+                                            {isPlaying ? (
+                                                <>
+                                                    <StopCircle className="w-3.5 h-3.5" />
+                                                    <span>STOP AUDIO</span>
+                                                    {/* Fake Equalizer Animation */}
+                                                    <div className="flex items-end gap-0.5 h-3 ml-1">
+                                                        <div className="w-0.5 bg-black animate-[pulse_0.5s_ease-in-out_infinite] h-1.5"></div>
+                                                        <div className="w-0.5 bg-black animate-[pulse_0.7s_ease-in-out_infinite] h-3"></div>
+                                                        <div className="w-0.5 bg-black animate-[pulse_0.4s_ease-in-out_infinite] h-2"></div>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {isAudioLoading && playingMessageId === null ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
+                                                    <span>READ ALOUD</span>
+                                                </>
+                                            )}
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={() => handleCopy(msg.text, msg.id)}
+                                            className="p-1.5 rounded-full hover:bg-west-panel text-west-muted hover:text-west-text transition-colors"
+                                            title="Copy Text"
+                                        >
+                                            {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
+
+                                    {/* Feedback Buttons */}
+                                    <div className="flex items-center gap-1">
+                                        <button 
+                                            onClick={() => handleFeedback(msg.id, true)} 
+                                            className={`p-1.5 rounded-lg transition-colors ${msg.feedback === 'positive' ? 'text-green-500 bg-green-500/10' : 'text-west-muted hover:text-green-500 hover:bg-west-panel'}`}
+                                        >
+                                            <ThumbsUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleFeedback(msg.id, false)} 
+                                            className={`p-1.5 rounded-lg transition-colors ${msg.feedback === 'negative' ? 'text-red-500 bg-red-500/10' : 'text-west-muted hover:text-red-500 hover:bg-west-panel'}`}
+                                        >
+                                            <ThumbsDown className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -577,7 +725,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                  <div className="w-full max-w-4xl mx-auto mt-6 animate-pulse">
                     <div className="flex items-center gap-3 bg-west-panel/30 backdrop-blur-sm border border-west-border/50 px-4 py-2 rounded-full w-fit">
                         <Sparkles className="w-4 h-4 text-west-accent animate-spin-slow" />
-                        <span className="text-xs font-mono text-west-accent tracking-widest">NEURAL PROCESSING...</span>
+                        <span className="text-xs font-mono text-west-accent tracking-widest">ANALIZOWANIE WIEDZY...</span>
                     </div>
                 </div>
             )}
@@ -604,7 +752,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                         <div className="w-10 h-10 rounded overflow-hidden border border-white/20">
                             <img src={selectedImage} alt="preview" className="w-full h-full object-cover" />
                         </div>
-                        <span className="text-xs font-mono text-west-text font-bold">ATTACHMENT READY</span>
+                        <span className="text-xs font-mono text-west-text font-bold">ZAŁĄCZNIK GOTOWY</span>
                         <button onClick={() => setSelectedImage(null)} className="text-west-muted hover:text-red-500 p-1"><X className="w-4 h-4" /></button>
                     </div>
                 )}
@@ -632,7 +780,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }}}
-                        placeholder={isListening ? "Listening..." : "Message Delos..."}
+                        placeholder={isListening ? "Słucham..." : "Zadaj pytanie szkoleniowe..."}
                         className="flex-1 bg-transparent border-none focus:ring-0 text-west-text font-sans placeholder-west-muted/70 text-base resize-none max-h-32 min-h-[48px] py-3 px-2 scrollbar-thin font-medium"
                         rows={1}
                     />
@@ -652,7 +800,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                 </div>
                 
                 <div className="mt-3 text-center">
-                     <span className="text-[9px] font-mono text-west-muted opacity-60 tracking-wider">SECURE CHANNEL // DELOS PROTOCOL v2.1</span>
+                     <span className="text-[9px] font-mono text-west-muted opacity-60 tracking-wider">EDU-CORE v2.0 // INTERNAL USE ONLY</span>
                 </div>
             </div>
         </div>

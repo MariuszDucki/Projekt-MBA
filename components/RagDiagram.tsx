@@ -1,225 +1,242 @@
 
 import React from 'react';
-import { Database, Search, BrainCircuit, MessageSquare, ShieldCheck, Sparkles, Cpu, Activity, FileText, Lock, Eye, Server } from 'lucide-react';
+import { Database, Search, MessageSquare, ShieldCheck, Sparkles, Cpu, Activity, FileText, Lock, Eye, Server, Zap } from 'lucide-react';
 
 const StepTooltip = ({ 
   text, 
-  align = 'center', 
-  forceBottomMobile = false 
+  side = 'top'
 }: { 
   text: string, 
-  align?: 'center' | 'start' | 'end',
-  forceBottomMobile?: boolean 
+  side?: 'top' | 'bottom'
 }) => {
-  let containerPos = "left-1/2 -translate-x-1/2";
-  let arrowPos = "left-1/2 -translate-x-1/2";
-
-  if (align === 'start') {
-    containerPos = "left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0";
-    arrowPos = "left-1/2 -translate-x-1/2 md:left-10";
-  } else if (align === 'end') {
-    containerPos = "left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0";
-    arrowPos = "left-1/2 -translate-x-1/2 md:left-auto md:right-10";
-  }
-
-  let posClasses = "bottom-full mb-4";
-  let arrowClasses = "top-full border-t-white dark:border-t-zinc-950 border-t-west-border";
-
-  if (forceBottomMobile) {
-    posClasses = "top-full mt-4 md:top-auto md:bottom-full md:mb-4 md:mt-0";
-    arrowClasses = `
-        bottom-full border-b-white dark:border-b-zinc-950 
-        md:bottom-auto md:top-full md:border-b-transparent md:border-t-west-border
-    `;
-  }
+  const posClasses = side === 'top' ? "bottom-full mb-3" : "top-full mt-3";
+  const arrowClasses = side === 'top' 
+    ? "top-full border-t-west-border border-b-transparent" 
+    : "bottom-full border-b-west-border border-t-transparent";
 
   return (
-    <div className={`absolute ${posClasses} ${containerPos} w-48 md:w-56 bg-west-panel border border-west-border text-west-text text-[10px] md:text-[11px] font-mono p-3 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 text-center backdrop-blur-md transform translate-y-2 group-hover:translate-y-0`}>
-      <span className="text-west-accent font-bold block mb-1">:: PROTOCOL LOG ::</span>
+    <div className={`absolute ${posClasses} left-1/2 -translate-x-1/2 w-48 bg-west-panel/95 border border-west-border text-west-text text-[10px] font-mono p-3 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 text-center backdrop-blur-md transform ${side === 'top' ? 'translate-y-2' : '-translate-y-2'} group-hover:translate-y-0`}>
+      <span className="text-west-accent font-bold block mb-1">:: SYSTEM LOG ::</span>
       {text}
-      <div className={`absolute ${arrowClasses} ${arrowPos} border-[6px] border-transparent transform -translate-x-1/2`}></div>
+      <div className={`absolute ${arrowClasses} left-1/2 -translate-x-1/2 border-[6px] border-x-transparent`}></div>
     </div>
   );
 };
 
-const ConnectionLine = ({ delay }: { delay: string }) => (
-    <>
-        <div className="hidden md:flex flex-1 h-[2px] bg-west-border relative overflow-hidden self-center mx-2 opacity-50">
-           <div className={`absolute inset-0 bg-west-accent w-1/2 animate-[shimmer_2s_infinite_${delay}] opacity-80`}></div>
-        </div>
-        <div className="md:hidden h-8 w-[2px] bg-west-border self-center my-1 opacity-50"></div>
-    </>
-);
-
 const RagDiagram: React.FC = () => {
+  // CONFIGURATION: Fixed coordinate system to ensure SVG and HTML always align
+  // Total Width: 1000px (matches min-w in parent)
+  const Y_CENTER = 120;
+  
+  const POS = {
+    USER: { x: 100, y: Y_CENTER },
+    GUARD: { x: 350, y: Y_CENTER },
+    RETRIEVAL: { x: 600, y: Y_CENTER },
+    LLM: { x: 850, y: Y_CENTER },
+    // Governance Nodes positions relative to the diagram
+    GOV_TOP: { x: 500, y: 40 },
+    GOV_BOT: { x: 500, y: 220 }
+  };
+
   return (
-    <div className="w-full bg-west-panel/50 border border-west-border rounded-xl relative overflow-visible p-4 md:p-8 min-h-[550px] flex flex-col">
-      <div className="absolute inset-0 bg-west-bg/30 pointer-events-none rounded-xl"></div>
+    <div className="w-full bg-west-panel/30 border border-west-border rounded-xl relative overflow-hidden p-0 min-h-[400px] flex flex-col items-center justify-center select-none">
+      <div className="absolute inset-0 bg-west-bg/40 pointer-events-none"></div>
       
-      {/* Header */}
-      <div className="hidden md:flex absolute top-6 left-6 md:left-8 items-center gap-2 z-30 whitespace-nowrap">
-          <div className="p-1.5 bg-west-accent/10 rounded border border-west-accent/20 backdrop-blur-md">
-            <Cpu className="w-5 h-5 animate-pulse text-west-accent" />
-          </div>
-          <h3 className="text-west-accent font-mono text-lg tracking-widest font-bold drop-shadow-sm bg-west-panel/90 px-4 py-1.5 rounded border border-west-border shadow-sm">
-              ENTERPRISE RAG ARCHITECTURE
-          </h3>
+      {/* BACKGROUND GRID DECORATION */}
+      <div className="absolute inset-0 opacity-10" 
+           style={{ backgroundImage: 'radial-gradient(circle, var(--accent-color) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-8 pt-12 md:pt-20 relative">
+      {/* Header Label */}
+      <div className="absolute top-4 left-4 flex items-center gap-2 z-30">
+          <div className="p-1.5 bg-west-accent/10 rounded border border-west-accent/20 backdrop-blur-md">
+            <Cpu className="w-4 h-4 animate-pulse text-west-accent" />
+          </div>
+          <span className="text-west-accent font-mono text-xs tracking-widest font-bold opacity-80">
+              RAG PIPELINE VISUALIZER
+          </span>
+      </div>
+
+      {/* MAIN DIAGRAM CONTAINER - Fixed Width to prevent alignment issues */}
+      <div className="relative w-[1000px] h-[300px]">
         
-        {/* SVG CONNECTIONS (GLOBAL LAYER) */}
-        {/* UPDATED COORDINATES: Adjusted Start/End points to align with center of icons (Y=120 approx) and center of right panel */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block z-0" style={{ overflow: 'visible' }}>
-            {/* Path 1: From Guardrails (Item 2 - approx x=200) to Governance (Right - x=710) */}
+        {/* === LAYER 1: SVG CONNECTIONS & ANIMATIONS === */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ overflow: 'visible' }}>
+            <defs>
+                {/* Gradient for flow lines */}
+                <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="var(--border-color)" stopOpacity="0.2" />
+                    <stop offset="50%" stopColor="var(--accent-color)" stopOpacity="0.5" />
+                    <stop offset="100%" stopColor="var(--border-color)" stopOpacity="0.2" />
+                </linearGradient>
+
+                {/* Flying Document Icon Definition */}
+                <g id="doc-icon">
+                    <rect x="-12" y="-15" width="24" height="30" rx="3" fill="var(--bg-panel)" stroke="var(--accent-color)" strokeWidth="2" className="drop-shadow-[0_0_10px_rgba(6,182,212,0.6)]" />
+                    <line x1="-7" y1="-8" x2="7" y2="-8" stroke="var(--text-muted)" strokeWidth="2" />
+                    <line x1="-7" y1="0" x2="7" y2="0" stroke="var(--text-muted)" strokeWidth="2" />
+                    <line x1="-7" y1="8" x2="2" y2="8" stroke="var(--text-muted)" strokeWidth="2" />
+                    {/* Corner fold */}
+                    <path d="M 0 -15 L 12 -3 L 12 -15 Z" fill="var(--accent-color)" opacity="0.5" />
+                </g>
+                
+                {/* Particle Effect for tails */}
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+            </defs>
+
+            {/* MAIN DATA BUS LINE */}
             <path 
-                d="M 200 120 C 200 20, 710 20, 710 120" 
-                fill="none" 
-                stroke="#ef4444" 
-                strokeOpacity="0.6" 
+                d={`M ${POS.USER.x} ${POS.USER.y} L ${POS.LLM.x} ${POS.LLM.y}`} 
+                stroke="url(#flowGradient)" 
                 strokeWidth="2" 
-                strokeDasharray="8,4"
-                className="animate-flow" 
+                fill="none"
             />
-            
-            {/* Path 2: From LLM (Item 4 - approx x=570) to Governance (Right - x=710) */}
-            <path 
-                d="M 570 120 C 570 20, 710 20, 710 120" 
-                fill="none" 
-                stroke="#06b6d4" 
-                strokeOpacity="0.6" 
-                strokeWidth="2" 
-                strokeDasharray="8,4"
-                className="animate-flow" 
-            />
-            
-            {/* Moving Dots on paths */}
-            <circle r="4" fill="#ef4444" className="filter drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-                 <animateMotion dur="4s" repeatCount="indefinite" path="M 200 120 C 200 20, 710 20, 710 120" />
+
+            {/* GOVERNANCE CONNECTIONS (Dashed) */}
+            {/* Guard -> Gov */}
+            <path d={`M ${POS.GUARD.x} ${POS.GUARD.y - 40} Q ${POS.GUARD.x} ${POS.GOV_TOP.y}, ${POS.GUARD.x + 50} ${POS.GOV_TOP.y}`} fill="none" stroke="#ef4444" strokeWidth="1" strokeDasharray="4,4" opacity="0.5" />
+            {/* Gov -> LLM */}
+            <path d={`M ${POS.RETRIEVAL.x} ${POS.RETRIEVAL.y + 40} Q ${POS.RETRIEVAL.x} ${POS.GOV_BOT.y}, ${POS.RETRIEVAL.x + 50} ${POS.GOV_BOT.y}`} fill="none" stroke="#06b6d4" strokeWidth="1" strokeDasharray="4,4" opacity="0.5" />
+
+            {/* === ADVANCED ANIMATION: FLYING DOCUMENT === */}
+            <g>
+                {/* The Document Object */}
+                <use href="#doc-icon">
+                    <animateMotion 
+                        dur="6s" 
+                        repeatCount="indefinite"
+                        path={`M ${POS.USER.x} ${POS.USER.y} L ${POS.LLM.x} ${POS.LLM.y}`}
+                        keyPoints="0;0.33;0.66;1"
+                        keyTimes="0;0.4;0.7;1"
+                        calcMode="linear"
+                    />
+                    {/* Scale effect at nodes */}
+                    <animateTransform 
+                        attributeName="transform" 
+                        type="scale" 
+                        values="1; 1.2; 1; 1.2; 1; 1.2; 1" 
+                        keyTimes="0; 0.33; 0.35; 0.66; 0.68; 0.98; 1" 
+                        dur="6s" 
+                        repeatCount="indefinite" 
+                        additive="sum"
+                    />
+                </use>
+
+                {/* Scanning Laser Effect (Vertical line that moves with doc) */}
+                <rect x="-15" y="-20" width="30" height="2" fill="#ef4444" opacity="0">
+                     <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.3;0.4;1" dur="6s" repeatCount="indefinite" />
+                     <animateMotion dur="6s" repeatCount="indefinite" path={`M ${POS.USER.x} ${POS.USER.y} L ${POS.LLM.x} ${POS.LLM.y}`} />
+                     <animateTransform attributeName="transform" type="translate" values="0 -10; 0 30" dur="1s" repeatCount="indefinite" additive="sum" />
+                </rect>
+            </g>
+
+            {/* Return Path (Response) - Faster Particle */}
+            <circle r="3" fill="var(--accent-color)" filter="url(#glow)">
+                <animateMotion 
+                    dur="2s" 
+                    begin="3s"
+                    repeatCount="indefinite"
+                    path={`M ${POS.LLM.x} ${POS.LLM.y + 10} Q ${(POS.USER.x + POS.LLM.x)/2} ${POS.LLM.y + 60} ${POS.USER.x} ${POS.USER.y + 10}`}
+                />
+                 <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="2s" repeatCount="indefinite" />
             </circle>
-             <circle r="4" fill="#06b6d4" className="filter drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">
-                 <animateMotion dur="3s" repeatCount="indefinite" path="M 570 120 C 570 20, 710 20, 710 120" />
-            </circle>
+
         </svg>
 
-        {/* LEFT COLUMN: PROCESSING PIPELINE */}
-        <div className="flex-1 flex flex-col md:flex-row justify-between items-center gap-2 relative z-10">
-            
-            {/* STEP 1: USER INTERFACE */}
-            <div className="flex flex-col items-center z-10 hover:z-50 group w-full md:w-auto relative cursor-help">
-            <StepTooltip text="User Interface: Query Processing & Input Normalization." align="start" forceBottomMobile={true} />
-            
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-west-muted bg-west-bg flex items-center justify-center group-hover:border-west-text transition-all relative shadow-lg">
-                <MessageSquare className="w-6 h-6 md:w-8 md:h-8 text-west-text" />
+        {/* === LAYER 2: HTML NODES (Absolute Positioning) === */}
+        
+        {/* NODE 1: USER */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 z-10 group cursor-help" style={{ left: POS.USER.x, top: POS.USER.y }}>
+            <div className="w-20 h-20 rounded-full border-2 border-west-border bg-west-panel flex items-center justify-center shadow-lg group-hover:border-west-text transition-all duration-300 relative">
+                <div className="absolute inset-0 rounded-full bg-west-accent/5 animate-ping opacity-0 group-hover:opacity-100"></div>
+                <MessageSquare className="w-8 h-8 text-west-text" />
             </div>
-            <div className="mt-4 text-center">
-                <p className="text-xs md:text-sm font-mono font-bold text-west-text">USER UI</p>
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center w-32">
+                <div className="text-xs font-mono font-bold text-west-text">USER QUERY</div>
+                <div className="text-[9px] text-west-muted mt-1">Input Normalization</div>
             </div>
-            </div>
-
-            <ConnectionLine delay="0s" />
-
-            {/* STEP 2: GUARDRAILS & INGESTION (X ≈ 200 center) */}
-            <div className="flex flex-col items-center z-10 hover:z-50 group w-full md:w-auto relative cursor-help">
-            <StepTooltip text="Data Ingestion & Safety Filter (PII Redaction)." forceBottomMobile={true} />
-            
-            <div className="relative">
-                {/* Simulated Ingestion Pipeline Below */}
-                <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-32 border border-west-border bg-west-panel rounded p-2 text-center backdrop-blur-sm hidden md:block">
-                    <div className="text-[9px] font-mono text-west-muted mb-1">DATA PIPELINE</div>
-                    <div className="flex justify-center gap-2">
-                         <FileText className="w-4 h-4 text-west-muted" />
-                         <Server className="w-4 h-4 text-west-muted" />
-                    </div>
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 h-6 w-[1px] bg-west-border border-l border-dashed border-west-muted"></div>
-                </div>
-
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 border-red-500/50 bg-red-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.2)] group-hover:bg-red-500/20 transition-all relative">
-                    <ShieldCheck className="w-8 h-8 text-red-500" />
-                </div>
-            </div>
-            <div className="mt-4 text-center">
-                <p className="text-xs md:text-sm font-mono font-bold text-red-500">GUARDRAILS</p>
-            </div>
-            </div>
-
-            <ConnectionLine delay="0.5s" />
-
-            {/* STEP 3: RETRIEVAL & VECTOR DB */}
-            <div className="flex flex-col items-center z-10 hover:z-50 relative group w-full md:w-auto cursor-help">
-            <StepTooltip text="Retrieval Mechanism: Cosine Similarity against Vector Index." />
-
-            {/* Floating Database Box */}
-            <div className="hidden md:block absolute -top-24 left-1/2 -translate-x-1/2 mb-6 p-2 border border-west-accent/50 bg-west-panel/90 rounded text-center w-32 shadow-[0_0_15px_rgba(6,182,212,0.15)] z-0 backdrop-blur">
-                <Database className="w-5 h-5 text-west-accent mx-auto mb-1" />
-                <span className="text-[9px] font-mono text-west-accent block font-bold">VECTOR DB</span>
-            </div>
-            <div className="hidden md:block absolute -top-12 h-12 w-[1px] bg-west-accent/50 z-0"></div>
-
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded border-2 border-west-accent bg-west-accent/10 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.2)] relative z-10 backdrop-blur-sm bg-west-bg/80 group-hover:bg-west-accent/20 transition-all">
-                <Search className="w-8 h-8 text-west-accent" />
-            </div>
-            
-            <div className="mt-4 text-center">
-                <p className="text-xs md:text-sm font-mono font-bold text-west-accent">RETRIEVAL</p>
-            </div>
-            </div>
-
-            <ConnectionLine delay="1s" />
-
-            {/* STEP 4: LLM (X ≈ 570 center) */}
-            <div className="flex flex-col items-center z-10 hover:z-50 group w-full md:w-auto relative cursor-help">
-            <StepTooltip text="LLM Core: Gemini 2.5 Flash generating context-aware response." />
-
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-double border-west-text bg-gradient-to-br from-west-panel to-west-bg flex items-center justify-center shadow-glow relative overflow-hidden group-hover:shadow-glow-lg transition-all">
-                <div className="absolute inset-0 bg-gradient-to-t from-west-accent/20 to-transparent animate-pulse-slow"></div>
-                <Sparkles className="w-10 h-10 text-west-text animate-pulse" />
-                <div className="absolute inset-0 border-t border-west-text/20 rounded-full animate-[spin_8s_linear_infinite]"></div>
-            </div>
-            
-            <div className="mt-4 text-center">
-                <p className="text-xs md:text-base font-bold font-sans text-west-text tracking-wide">GEMINI 2.5</p>
-            </div>
-            </div>
-
+            <StepTooltip text="Początek przepływu. Zapytanie użytkownika jest normalizowane i wstępnie procesowane." />
         </div>
 
-        {/* RIGHT COLUMN: GOVERNANCE LAYER (ISO 42001) - X Start ≈ 710 */}
-        <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-west-border md:pl-8 pt-8 md:pt-0 flex flex-col justify-center relative z-10">
-            <div className="absolute -left-[17px] top-1/2 -translate-y-1/2 w-8 h-8 bg-west-bg border border-west-border rounded-full items-center justify-center hidden md:flex z-10">
-                <Activity className="w-4 h-4 text-west-muted" />
+        {/* NODE 2: GUARDRAILS */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 z-10 group cursor-help" style={{ left: POS.GUARD.x, top: POS.GUARD.y }}>
+            <div className="w-20 h-20 rounded-xl border-2 border-red-500/30 bg-red-500/5 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.1)] group-hover:bg-red-500/10 group-hover:scale-110 transition-all duration-300">
+                <ShieldCheck className="w-9 h-9 text-red-500" />
+                <div className="absolute -top-2 -right-2 bg-west-bg border border-red-500/50 rounded-full p-1">
+                    <Lock className="w-3 h-3 text-red-500" />
+                </div>
             </div>
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center w-32">
+                <div className="text-xs font-mono font-bold text-red-500">GUARDRAILS</div>
+                <div className="text-[9px] text-west-muted mt-1">PII Scrubbing & Security</div>
+            </div>
+            <StepTooltip text="Analiza bezpieczeństwa. Wykrywanie danych wrażliwych (PII) i prób ataku (Injection)." />
+        </div>
 
-            <div className="bg-west-panel border border-blue-500/30 rounded-xl p-4 relative overflow-hidden backdrop-blur-md">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-3xl"></div>
-                
-                <h4 className="text-blue-500 font-mono font-bold text-xs mb-4 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4" />
-                    AI GOVERNANCE
-                </h4>
-                
-                <div className="space-y-3">
-                    <div className="bg-west-bg/50 p-2 rounded border border-west-border flex items-center gap-2">
-                        <Lock className="w-3 h-3 text-west-muted" />
-                        <span className="text-[10px] font-mono text-west-text">Policy & Risk Mgmt</span>
-                    </div>
-                    <div className="bg-west-bg/50 p-2 rounded border border-west-border flex items-center gap-2">
-                        <FileText className="w-3 h-3 text-west-muted" />
-                        <span className="text-[10px] font-mono text-west-text">Audit Trail</span>
-                    </div>
-                    <div className="bg-west-bg/50 p-2 rounded border border-west-border flex items-center gap-2">
-                        <Eye className="w-3 h-3 text-west-muted" />
-                        <span className="text-[10px] font-mono text-west-text">Human Oversight</span>
-                    </div>
-                    <div className="bg-west-bg/50 p-2 rounded border border-west-border flex items-center gap-2">
-                        <Activity className="w-3 h-3 text-west-muted" />
-                        <span className="text-[10px] font-mono text-west-text">Performance Mon.</span>
-                    </div>
-                </div>
+        {/* NODE 3: RETRIEVAL */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 z-10 group cursor-help" style={{ left: POS.RETRIEVAL.x, top: POS.RETRIEVAL.y }}>
+             {/* Database Stack Effect */}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                 <div className="w-8 h-2 bg-west-accent/20 rounded-full border border-west-accent/40"></div>
+                 <div className="w-8 h-2 bg-west-accent/20 rounded-full border border-west-accent/40"></div>
+                 <div className="w-8 h-2 bg-west-accent/20 rounded-full border border-west-accent/40"></div>
+            </div>
+            
+            <div className="w-20 h-20 rounded border-2 border-west-accent bg-west-accent/10 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.15)] group-hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] group-hover:bg-west-accent/20 transition-all duration-300 backdrop-blur-sm">
+                <Database className="w-9 h-9 text-west-accent" />
+            </div>
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center w-32">
+                <div className="text-xs font-mono font-bold text-west-accent">VECTOR RAG</div>
+                <div className="text-[9px] text-west-muted mt-1">Semantic Search</div>
+            </div>
+             <StepTooltip text="Wyszukiwanie wektorowe. Znajdowanie relewantnych dokumentów w bazie wiedzy." />
+        </div>
 
-                <div className="mt-4 pt-3 border-t border-west-border text-[9px] font-mono text-blue-500/80 text-center">
-                    ISO 42001 COMPLIANT
-                </div>
+        {/* NODE 4: LLM */}
+        <div className="absolute -translate-x-1/2 -translate-y-1/2 z-10 group cursor-help" style={{ left: POS.LLM.x, top: POS.LLM.y }}>
+            <div className="w-24 h-24 rounded-full border-4 double border-west-text bg-gradient-to-br from-west-panel to-west-bg flex items-center justify-center shadow-glow group-hover:scale-105 transition-all duration-500 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-t from-west-accent/20 to-transparent animate-pulse-slow"></div>
+                {/* Rotating Ring */}
+                <div className="absolute inset-0 border-t-2 border-west-accent/50 rounded-full animate-[spin_4s_linear_infinite]"></div>
+                
+                <Sparkles className="w-10 h-10 text-west-text animate-pulse relative z-10" />
+            </div>
+            <div className="absolute top-28 left-1/2 -translate-x-1/2 text-center w-32">
+                <div className="text-sm font-sans font-bold text-west-text tracking-wider">GEMINI 2.5</div>
+                <div className="text-[9px] text-west-muted mt-1">Context Synthesis</div>
+            </div>
+             <StepTooltip text="Generowanie odpowiedzi. LLM łączy kontekst z zapytaniem użytkownika." />
+        </div>
+
+        {/* === LAYER 3: GOVERNANCE OVERLAYS (Floating Panels) === */}
+        
+        {/* Top: Policy Check */}
+        <div className="absolute p-3 rounded-lg border border-red-500/30 bg-west-panel/80 backdrop-blur-md shadow-lg flex items-center gap-3 animate-float" 
+             style={{ left: POS.GUARD.x + 80, top: POS.GOV_TOP.y - 20 }}>
+            <div className="p-1.5 bg-red-500/10 rounded-full animate-pulse">
+                <Activity className="w-4 h-4 text-red-500" />
+            </div>
+            <div>
+                <div className="text-[9px] font-mono text-west-muted uppercase">Risk Check</div>
+                <div className="text-[10px] font-bold text-red-500">ISO 42001</div>
+            </div>
+        </div>
+
+        {/* Bottom: Context Audit */}
+        <div className="absolute p-3 rounded-lg border border-west-accent/30 bg-west-panel/80 backdrop-blur-md shadow-lg flex items-center gap-3 animate-float-delayed" 
+             style={{ left: POS.RETRIEVAL.x + 80, top: POS.GOV_BOT.y }}>
+             <div className="p-1.5 bg-west-accent/10 rounded-full">
+                <FileText className="w-4 h-4 text-west-accent" />
+            </div>
+            <div>
+                <div className="text-[9px] font-mono text-west-muted uppercase">Audit Log</div>
+                <div className="text-[10px] font-bold text-west-accent">RECORDED</div>
             </div>
         </div>
 

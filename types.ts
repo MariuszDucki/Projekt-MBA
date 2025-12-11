@@ -5,12 +5,24 @@ export enum MessageRole {
   SYSTEM = 'system'
 }
 
-export type WidgetType = 'checklist' | 'telemetry';
+export type WidgetType = 'checklist' | 'telemetry' | 'quiz';
+
+export interface QuizOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface QuizData {
+  question: string;
+  options: QuizOption[];
+  explanation: string;
+}
 
 export interface WidgetData {
   type: WidgetType;
   title: string;
-  data: any; 
+  data: any; // Can be string[], TelemetryItem[], or QuizData
 }
 
 export interface Message {
@@ -26,7 +38,7 @@ export interface Message {
     type: 'image' | 'video';
   };
   widget?: WidgetData;
-  feedback?: 'positive' | 'negative'; // ADDED: RLHF Feedback Loop
+  feedback?: 'positive' | 'negative'; // RLHF Feedback Loop
 }
 
 export interface KnowledgeDoc {
@@ -38,7 +50,7 @@ export interface KnowledgeDoc {
   mediaUrl?: string; 
   mediaType?: 'image' | 'video';
   attachedImages?: string[]; 
-  embedding?: number[]; // ADDED: Vector representation
+  embedding?: number[]; // Vector representation
 }
 
 export interface Ticket {
@@ -50,12 +62,12 @@ export interface Ticket {
   timestamp: string;
 }
 
-// ADDED: Audit Log Structure for Governance
+// Audit Log Structure for Governance
 export interface AuditLogEntry {
   id: string;
   timestamp: string;
   actor: 'USER' | 'SYSTEM' | 'GUARDRAIL';
-  action: 'QUERY' | 'RESPONSE' | 'TOOL_EXECUTION' | 'SECURITY_BLOCK' | 'DATA_RETRIEVAL' | 'USER_FEEDBACK';
+  action: 'QUERY' | 'RESPONSE' | 'TOOL_EXECUTION' | 'SECURITY_BLOCK' | 'DATA_RETRIEVAL' | 'USER_FEEDBACK' | 'KNOWLEDGE_GAP';
   details: string;
   status: 'SUCCESS' | 'BLOCKED' | 'WARNING';
   hash?: string; // Integrity check

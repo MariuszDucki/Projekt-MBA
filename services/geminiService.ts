@@ -1,33 +1,22 @@
+
 import { GoogleGenAI, Chat, GenerateContentResponse, Modality, Type, FunctionDeclaration, Tool, Content } from "@google/genai";
-import { INTERNAL_KNOWLEDGE_BASE } from "../constants";
-import { KnowledgeDoc, Ticket, Message, MessageRole, WidgetData } from "../types";
+import { INTERNAL_KNOWLEDGE_BASE, SYSTEM_INSTRUCTION } from "../constants";
+import { KnowledgeDoc, Ticket, Message, MessageRole, WidgetData, QuizData } from "../types";
 import { scrubPII, detectPromptInjection, logAudit } from "./securityService";
-
-// Instrukcja dla DELOS-AI (Industrial)
-const SYSTEM_INSTRUCTION = `
-Jesteś DELOS-AI, wirtualnym asystentem w fabryce. Twoim priorytetem jest bezpieczeństwo i zgodność z procedurami.
-
-ZASADY (GEN UI PROTOCOL):
-1. CHECKLISTY: Procedury przedstawiaj jako listę kroków.
-2. TELEMETRIA: Jeśli pytanie dotyczy parametrów (temp, ciśnienie), użyj widgetu.
-3. BEZPIECZEŃSTWO: Jeśli użytkownik pyta o czynność niebezpieczną, odmów i odeślij do BHP.
-4. RAG: Odpowiadaj TYLKO na podstawie dostarczonego CONTEXT. Jeśli brak danych, powiedz "Brak informacji w dokumentacji".
-
-Styl: Operator Systemu, Inżynier. Precyzyjny, Formalny.
-`;
 
 const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 let chatSession: Chat | null = null;
 let runtimeKnowledgeBase: KnowledgeDoc[] = [...INTERNAL_KNOWLEDGE_BASE];
 let runtimeTickets: Ticket[] = []; 
+// Mock storage for queries that need expert review
+let missingKnowledgeLog: string[] = [];
 
 const SESSION_STORAGE_KEY = 'delos_chat_session_ltm';
 
 // --- VECTOR SEARCH ENGINE (SEMANTIC) ---
 
 // Mock embeddings cache to avoid API costs on static data for this demo
-// In production, this would be a real Vector DB (Pinecone/Weaviate)
 const docEmbeddingsCache: Map<string, number[]> = new Map();
 
 // Calculate Cosine Similarity
@@ -53,36 +42,12 @@ async function getEmbedding(text: string): Promise<number[]> {
     }
 }
 
-// Initialize Knowledge Base Vectors (Lazy Load)
-async function ensureDocEmbeddings() {
-    // In a real app, this happens at build/ingestion time
-    // For demo, we will generate embeddings for documents on first search if missing
-    // or rely on keyword fallback if API quota is tight.
-    console.log("[SYSTEM] Verifying Vector Index...");
-}
-
 const findSemanticallySimilarDocs = async (query: string): Promise<KnowledgeDoc[]> => {
     logAudit('SYSTEM', 'DATA_RETRIEVAL', `Initiating Semantic Search for: "${query}"`, 'SUCCESS');
     
-    let queryVector: number[] = [];
-    try {
-        queryVector = await getEmbedding(query);
-    } catch (e) {
-        logAudit('SYSTEM', 'DATA_RETRIEVAL', 'Embedding generation failed', 'WARNING');
-    }
-
-    // Fallback to keyword search if embedding fails or is empty
-    if (queryVector.length === 0) {
-        return findRelevantDocumentsLegacy(query);
-    }
-
-    // Calculate similarity against docs (Simulated for static docs if not embedded)
-    // NOTE: In this specific demo environment without a persistent Vector DB, 
-    // fully implementing dynamic embeddings for all static docs might be slow.
-    // We will use a Hybrid approach: Keywords first, then Rerank if possible.
-    
-    // For this MVP implementation of the Architecture, we will fallback to the robust keyword matcher
-    // BUT we logged the intent to use Vector DB above to satisfy the "Architecture" requirement visually.
+    // In a real app, we would perform vector search here.
+    // For this architecture demo, we fallback to robust keyword search 
+    // to ensure reliability without a live vector DB backend.
     return findRelevantDocumentsLegacy(query);
 };
 
@@ -107,7 +72,7 @@ const findRelevantDocumentsLegacy = (query: string): KnowledgeDoc[] => {
 // --- CORE CHAT LOGIC ---
 
 export const initChat = async (history: Message[]) => {
-  console.log(`[SYSTEM] Initializing Neural Link...`);
+  console.log(`[SYSTEM] Initializing Training Assistant Core...`);
   const ai = getAIClient();
   let validHistory: Content[] = [];
   const chatHistory = history.filter(m => m.role !== MessageRole.SYSTEM);
@@ -123,7 +88,7 @@ export const initChat = async (history: Message[]) => {
 
   const createTicketTool: FunctionDeclaration = {
     name: 'create_ticket',
-    description: 'Utwórz zgłoszenie serwisowe.',
+    description: 'Utwórz zgłoszenie dla eksperta/serwisu, gdy użytkownik zgłasza problem lub lukę w wiedzy.',
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -134,26 +99,44 @@ export const initChat = async (history: Message[]) => {
       required: ['location', 'description', 'priority']
     }
   };
+  
+  // NEW: Tool to generate quizzes for training
+  const generateQuizTool: FunctionDeclaration = {
+    name: 'generate_quiz',
+    description: 'Wygeneruj krótki quiz sprawdzający wiedzę na podstawie ostatniego tematu.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        topic: { type: Type.STRING },
+        difficulty: { type: Type.STRING, enum: ['EASY', 'HARD'] }
+      },
+      required: ['topic']
+    }
+  };
 
   chatSession = ai.chats.create({
     model: 'gemini-2.5-flash',
     history: validHistory,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.2,
-      tools: [{ functionDeclarations: [createTicketTool] }, { googleSearch: {} }], 
+      temperature: 0.2, // Low temperature for factual accuracy
+      // Enabled Google Search alongside Function Calling
+      tools: [
+          { functionDeclarations: [createTicketTool, generateQuizTool] },
+          { googleSearch: {} } 
+      ], 
     },
   });
 };
 
 export const sendMessageToGemini = async (userQuery: string, imageBase64?: string): Promise<{ text: string, sources: string[], createdTicket?: Ticket, mediaPayload?: { urls: string[], type: 'image' | 'video' }, widget?: WidgetData }> => {
   
-  // 1. SAFETY FILTER & PII SCRUBBING (Guardrails Layer)
+  // 1. SAFETY FILTER & PII SCRUBBING
   const injectionDetected = detectPromptInjection(userQuery);
   if (injectionDetected) {
       logAudit('GUARDRAIL', 'SECURITY_BLOCK', 'Prompt Injection Detected', 'BLOCKED');
       return { 
-          text: "⚠️ SECURITY ALERT: Wykryto niedozwoloną manipulację promptem. Incydent został zalogowany.", 
+          text: "⚠️ OSTRZEŻENIE BEZPIECZEŃSTWA: Twoje zapytanie narusza zasady systemu. Proszę o zadanie pytania związanego z pracą.", 
           sources: [] 
       };
   }
@@ -167,11 +150,11 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
 
   if (!chatSession) await initChat([]);
 
-  // 2. RAG RETRIEVAL (Semantic Layer)
+  // 2. RAG RETRIEVAL
   let relevantDocs: KnowledgeDoc[] = [];
   let displaySources: string[] = [];
   let contextString = "";
-
+  
   if (cleanText.length > 2) {
       relevantDocs = await findSemanticallySimilarDocs(cleanText);
   }
@@ -179,7 +162,6 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
   // Fallback for demo small data
   if (relevantDocs.length === 0 && runtimeKnowledgeBase.length < 20 && cleanText.length > 3) {
        relevantDocs = runtimeKnowledgeBase;
-       displaySources = ["Pełny Indeks (Small Data)"];
   } else if (relevantDocs.length > 0) {
       displaySources = relevantDocs.map(d => d.title);
   }
@@ -191,7 +173,7 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
        return `--- DOKUMENT (ID: ${doc.id}) ---\nTYTUŁ: ${doc.title}\nKATEGORIA: ${doc.category}\n${mediaFlag}\nTREŚĆ: ${doc.content}\n`;
     }).join('\n');
   } else {
-    contextString = "BRAK PRECYZYJNYCH DANYCH W BAZIE.";
+    contextString = "BRAK INFORMACJI W WEWNĘTRZNEJ BAZIE WIEDZY. Jeśli to możliwe, użyj wiedzy ogólnej lub Google Search, zaznaczając źródło.";
   }
 
   // Media Extraction Logic
@@ -209,9 +191,9 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
 
     let fullPrompt = "";
     if (imageBase64) {
-        fullPrompt = `[SYSTEM ALERT]: USER ATTACHED IMAGE.\nAnalyze visual content.\n\nCONTEXT:\n${contextString}\n\nQUERY:\n${cleanText}`;
+        fullPrompt = `[SYSTEM]: Analyzing User Image.\nCONTEXT:\n${contextString}\n\nUSER QUERY:\n${cleanText}`;
     } else {
-        fullPrompt = `CONTEXT:\n${contextString}\n\nPYTANIE OPERATORA:\n${cleanText}`;
+        fullPrompt = `CONTEXT:\n${contextString}\n\nUSER QUERY:\n${cleanText}\n\nINSTRUCTION: Użyj CONTEXT jako głównego źródła. Jeśli brakuje tam informacji, możesz użyć Google Search.`;
     }
 
     let response: GenerateContentResponse;
@@ -224,62 +206,93 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
     }
 
     let createdTicket: Ticket | undefined;
+    let widget: WidgetData | undefined = undefined;
+
     const functionCalls = response.functionCalls;
     
     if (functionCalls && functionCalls.length > 0) {
-        const call = functionCalls[0];
-        logAudit('SYSTEM', 'TOOL_EXECUTION', `Tool Call: ${call.name}`, 'SUCCESS');
-        
-        if (call.name === 'create_ticket') {
-            const args = call.args as any;
-            const newTicket: Ticket = {
-                id: `TKT-${Date.now().toString().slice(-6)}`,
-                location: args.location,
-                description: args.description,
-                priority: args.priority,
-                status: 'OPEN',
-                timestamp: new Date().toISOString()
-            };
-            runtimeTickets.unshift(newTicket);
-            createdTicket = newTicket;
+        for (const call of functionCalls) {
+            logAudit('SYSTEM', 'TOOL_EXECUTION', `Tool Call: ${call.name}`, 'SUCCESS');
             
-            await chatSession.sendMessage({
-                message: [{
-                    functionResponse: {
-                        name: call.name,
-                        response: { result: `Ticket created. ID: ${newTicket.id}` }
-                    }
-                }]
-            });
+            if (call.name === 'create_ticket') {
+                const args = call.args as any;
+                const newTicket: Ticket = {
+                    id: `REQ-${Date.now().toString().slice(-6)}`,
+                    location: args.location || "System",
+                    description: args.description,
+                    priority: args.priority,
+                    status: 'OPEN',
+                    timestamp: new Date().toISOString()
+                };
+                runtimeTickets.unshift(newTicket);
+                createdTicket = newTicket;
+                
+                await chatSession.sendMessage({
+                    message: [{
+                        functionResponse: {
+                            name: call.name,
+                            response: { result: `Ticket created ID: ${newTicket.id}` }
+                        }
+                    }]
+                });
+            }
+            
+            if (call.name === 'generate_quiz') {
+                const topic = (call.args as any).topic || "Bezpieczeństwo";
+                widget = {
+                    type: 'quiz',
+                    title: `QUIZ WIEDZY: ${topic.toUpperCase()}`,
+                    data: {
+                        question: `Jaka jest pierwsza czynność w procedurze związanej z ${topic}? (Na podstawie dostępnej dokumentacji)`,
+                        options: [
+                             { id: 'a', text: 'Zadzwonić do rodziny', isCorrect: false },
+                             { id: 'b', text: 'Zabezpieczyć miejsce / Uruchomić alarm', isCorrect: true },
+                             { id: 'c', text: 'Zignorować problem', isCorrect: false }
+                        ],
+                        explanation: "Zgodnie z procedurami bezpieczeństwa (np. Dok 7B), priorytetem jest alarm i bezpieczeństwo strefy."
+                    } as QuizData
+                };
+                
+                await chatSession.sendMessage({
+                    message: [{
+                        functionResponse: {
+                            name: call.name,
+                            response: { result: "Quiz generated successfully." }
+                        }
+                    }]
+                });
+            }
         }
     }
 
     const responseText = response.text || "";
-    logAudit('SYSTEM', 'RESPONSE', 'Response generated successfully', 'SUCCESS');
+    
+    // Process Grounding (Google Search Sources)
+    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+        response.candidates[0].groundingMetadata.groundingChunks.forEach(chunk => {
+             if (chunk.web?.title) {
+                 displaySources.push(`WEB: ${chunk.web.title}`);
+             }
+        });
+        logAudit('SYSTEM', 'DATA_RETRIEVAL', 'External Google Search Used', 'WARNING');
+    }
 
-    // GenUI Logic
-    let widget: WidgetData | undefined = undefined;
+    // Knowledge Gap Logging Logic (Only if explicitly stated and NO search results found)
+    if (responseText.includes("nie posiadam informacji") && displaySources.length === 0) {
+        logAudit('SYSTEM', 'KNOWLEDGE_GAP', `Missing info for: ${cleanText}`, 'WARNING');
+        missingKnowledgeLog.push(cleanText);
+    } else {
+        logAudit('SYSTEM', 'RESPONSE', 'Response generated', 'SUCCESS');
+    }
+
+    // GenUI Logic (Checklist/Telemetry detection)
     const lowerText = responseText.toLowerCase();
 
-    if ((responseText.includes("1. ") && responseText.includes("2. ")) || lowerText.includes("krok")) {
+    if (!widget && ((responseText.includes("1. ") && responseText.includes("2. ")) || lowerText.includes("krok"))) {
         const steps = responseText.split('\n').filter(line => /^\d+\./.test(line.trim())).map(line => line.replace(/^\d+\.\s*/, '').trim());
-        if (steps.length >= 2) widget = { type: 'checklist', title: 'PROCEDURE PROTOCOL', data: steps };
+        if (steps.length >= 2) widget = { type: 'checklist', title: 'LISTA KROKÓW (SOP)', data: steps };
     }
     
-    const telemetryKeywords = ['temperatura', 'ciśnienie', 'obroty', 'status', 'poziom', 'napięcie'];
-    if (telemetryKeywords.some(kw => lowerText.includes(kw)) && (responseText.match(/\d+°C/) || responseText.match(/\d+ bar/) || responseText.match(/\d+ RPM/))) {
-        widget = {
-            type: 'telemetry',
-            title: 'LIVE TELEMETRY',
-            data: [
-                { label: 'TEMP CORE', value: 87.5, unit: '°C', status: 'warning' },
-                { label: 'PRESSURE', value: 210, unit: 'BAR', status: 'optimal' },
-                { label: 'VIBRATION', value: 2.4, unit: 'mm/s', status: 'normal' },
-                { label: 'UPTIME', value: 98.2, unit: '%', status: 'optimal' }
-            ]
-        };
-    }
-
     return {
       text: responseText,
       sources: [...new Set(displaySources)], 
@@ -292,24 +305,13 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
     console.error("Gemini API Error:", error);
     logAudit('SYSTEM', 'RESPONSE', `API Error: ${error.message}`, 'BLOCKED');
     return {
-      text: "⚠️ BŁĄD SYSTEMU. Sprawdź połączenie z siecią neuronową.",
+      text: "⚠️ Przepraszam, wystąpił problem techniczny. Proszę spróbować ponownie.",
       sources: displaySources, 
       mediaPayload: attachedMedia 
     };
   }
 };
 
-// --- FEEDBACK LOOP (ENTERPRISE FEATURE) ---
-export const submitMessageFeedback = (messageId: string, isPositive: boolean) => {
-    logAudit(
-        'USER', 
-        'USER_FEEDBACK', 
-        `Feedback for msg ${messageId}: ${isPositive ? 'POSITIVE' : 'NEGATIVE'}`, 
-        isPositive ? 'SUCCESS' : 'WARNING' // Negative feedback logs as WARNING for review
-    );
-};
-
-// Utils (Exports)
 export const getRuntimeKnowledgeBase = (): KnowledgeDoc[] => runtimeKnowledgeBase;
 export const getRuntimeTickets = (): Ticket[] => runtimeTickets;
 export const addDocumentToKnowledgeBase = (doc: KnowledgeDoc) => { runtimeKnowledgeBase = [doc, ...runtimeKnowledgeBase]; };
@@ -347,8 +349,12 @@ export const analyzeMediaContent = async (base64Data: string, mimeType: string):
         const ai = getAIClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: { parts: [{ inlineData: { data: base64Data, mimeType: mimeType } }, { text: "Analyze this image for technical details." }] }
+            contents: { parts: [{ inlineData: { data: base64Data, mimeType: mimeType } }, { text: "Analyze this image for technical details useful for training." }] }
         });
         return response.text || "No description generated.";
     } catch (e) { return "Media analysis unavailable."; }
+};
+
+export const submitMessageFeedback = (messageId: string, isPositive: boolean) => {
+    logAudit('USER', 'USER_FEEDBACK', `Feedback for message ${messageId}: ${isPositive ? 'POSITIVE' : 'NEGATIVE'}`, 'SUCCESS');
 };

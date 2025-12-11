@@ -60,15 +60,28 @@ const App: React.FC = () => {
   // Apply and Save Theme on change
   useEffect(() => {
     const applyTheme = () => {
-      const body = document.body;
-      body.classList.remove('light-theme', 'dark');
+      // FIX: Tailwind darkMode: 'class' looks for class on <html>, not <body>
+      const root = document.documentElement;
+      
+      root.classList.remove('light-theme', 'dark');
       
       let finalTheme = theme;
       if (theme === 'system') {
          finalTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
 
-      body.classList.add(finalTheme === 'dark' ? 'dark' : 'light-theme');
+      if (finalTheme === 'dark') {
+          root.classList.add('dark');
+          // Optional: Clean body just in case
+          document.body.classList.add('dark');
+          document.body.classList.remove('light-theme');
+      } else {
+          root.classList.add('light-theme');
+          // Optional: Clean body just in case
+          document.body.classList.add('light-theme');
+          document.body.classList.remove('dark');
+      }
+      
       localStorage.setItem('delos_theme', theme);
     };
 
