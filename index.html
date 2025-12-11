@@ -7,6 +7,31 @@
     <title>DELOS-AI Training Core</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- THEME INITIALIZATION SCRIPT (NO FOUC) -->
+    <script>
+      (function() {
+        try {
+          const localTheme = localStorage.getItem('delos_theme');
+          const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          if (localTheme === 'dark' || (!localTheme && supportDarkMode)) {
+            document.documentElement.classList.add('dark');
+            document.body && document.body.classList.add('dark');
+          } else if (localTheme === 'light' || (!localTheme && !supportDarkMode)) {
+            document.documentElement.classList.add('light-theme');
+            document.body && document.body.classList.add('light-theme');
+          } else if (localTheme === 'system') {
+             if (supportDarkMode) {
+                document.documentElement.classList.add('dark');
+             } else {
+                document.documentElement.classList.add('light-theme');
+             }
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <style>
       :root {
         /* DEFAULT (DARK / WARM / STONE) */
@@ -35,7 +60,7 @@
       /* LIGHT THEME (HIGH CONTRAST / LABORATORY INDUSTRIAL) */
       .light-theme {
         --bg-primary: #f8fafc; /* Slate 50 - Very clean white-grey */
-        --bg-panel: rgba(255, 255, 255, 0.95);   /* Solid White Glass */
+        --bg-panel: rgba(255, 255, 255, 0.85);   /* Solid White Glass */
         --bg-paper: #ffffff;    /* Pure white */
         --bg-bubble-user: linear-gradient(135deg, rgba(224, 242, 254, 1) 0%, rgba(240, 249, 255, 1) 100%); /* Sky 100 */
         --bg-bubble-system: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); /* Slate 100-200 */
@@ -60,7 +85,7 @@
         background-color: var(--bg-primary);
         color: var(--text-primary);
         overflow: hidden;
-        transition: background-color 0.5s ease, color 0.5s ease;
+        transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         background-image: 
             radial-gradient(circle at 15% 50%, var(--panel-hover) 0%, transparent 25%),
             radial-gradient(circle at 85% 30%, var(--panel-hover) 0%, transparent 25%);
@@ -70,6 +95,15 @@
       @keyframes float-subtle {
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-4px); }
+      }
+
+      /* Data Flow Animation for RAG Diagram */
+      @keyframes flow {
+        from { stroke-dashoffset: 20; }
+        to { stroke-dashoffset: 0; }
+      }
+      .animate-flow {
+        animation: flow 1s linear infinite;
       }
 
       .animate-float {
@@ -240,7 +274,7 @@
         opacity: 0.8;
       }
       .light-theme .crt-overlay {
-        opacity: 0.1; /* Almost invisible scanlines in light mode */
+        opacity: 0.08; /* Barely visible in light mode to keep clean look */
       }
 
       /* Utility for Glass Panels */

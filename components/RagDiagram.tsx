@@ -69,20 +69,36 @@ const RagDiagram: React.FC = () => {
       <div className="flex-1 flex flex-col md:flex-row gap-8 pt-12 md:pt-20 relative">
         
         {/* SVG CONNECTIONS (GLOBAL LAYER) */}
+        {/* UPDATED COORDINATES: Adjusted Start/End points to align with center of icons (Y=120 approx) and center of right panel */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block z-0" style={{ overflow: 'visible' }}>
-            {/* From Guardrails (Item 2) to Governance (Right) */}
-            {/* Used stronger stroke colors for visibility in light mode */}
-            <path d="M 180 80 C 180 0, 710 0, 710 80" fill="none" stroke="#ef4444" strokeOpacity="0.5" strokeWidth="1.5" strokeDasharray="5,5" />
+            {/* Path 1: From Guardrails (Item 2 - approx x=200) to Governance (Right - x=710) */}
+            <path 
+                d="M 200 120 C 200 20, 710 20, 710 120" 
+                fill="none" 
+                stroke="#ef4444" 
+                strokeOpacity="0.6" 
+                strokeWidth="2" 
+                strokeDasharray="8,4"
+                className="animate-flow" 
+            />
             
-            {/* From LLM (Item 4) to Governance (Right) */}
-            <path d="M 550 80 C 550 0, 710 0, 710 80" fill="none" stroke="#06b6d4" strokeOpacity="0.5" strokeWidth="1.5" strokeDasharray="5,5" />
+            {/* Path 2: From LLM (Item 4 - approx x=570) to Governance (Right - x=710) */}
+            <path 
+                d="M 570 120 C 570 20, 710 20, 710 120" 
+                fill="none" 
+                stroke="#06b6d4" 
+                strokeOpacity="0.6" 
+                strokeWidth="2" 
+                strokeDasharray="8,4"
+                className="animate-flow" 
+            />
             
-            {/* Animated dots on paths */}
-            <circle r="3" fill="#ef4444">
-                 <animateMotion dur="4s" repeatCount="indefinite" path="M 180 80 C 180 0, 710 0, 710 80" />
+            {/* Moving Dots on paths */}
+            <circle r="4" fill="#ef4444" className="filter drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                 <animateMotion dur="4s" repeatCount="indefinite" path="M 200 120 C 200 20, 710 20, 710 120" />
             </circle>
-             <circle r="3" fill="#06b6d4">
-                 <animateMotion dur="3s" repeatCount="indefinite" path="M 550 80 C 550 0, 710 0, 710 80" />
+             <circle r="4" fill="#06b6d4" className="filter drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+                 <animateMotion dur="3s" repeatCount="indefinite" path="M 570 120 C 570 20, 710 20, 710 120" />
             </circle>
         </svg>
 
@@ -103,7 +119,7 @@ const RagDiagram: React.FC = () => {
 
             <ConnectionLine delay="0s" />
 
-            {/* STEP 2: GUARDRAILS & INGESTION */}
+            {/* STEP 2: GUARDRAILS & INGESTION (X ≈ 200 center) */}
             <div className="flex flex-col items-center z-10 hover:z-50 group w-full md:w-auto relative cursor-help">
             <StepTooltip text="Data Ingestion & Safety Filter (PII Redaction)." forceBottomMobile={true} />
             
@@ -151,7 +167,7 @@ const RagDiagram: React.FC = () => {
 
             <ConnectionLine delay="1s" />
 
-            {/* STEP 4: LLM */}
+            {/* STEP 4: LLM (X ≈ 570 center) */}
             <div className="flex flex-col items-center z-10 hover:z-50 group w-full md:w-auto relative cursor-help">
             <StepTooltip text="LLM Core: Gemini 2.5 Flash generating context-aware response." />
 
@@ -168,7 +184,7 @@ const RagDiagram: React.FC = () => {
 
         </div>
 
-        {/* RIGHT COLUMN: GOVERNANCE LAYER (ISO 42001) */}
+        {/* RIGHT COLUMN: GOVERNANCE LAYER (ISO 42001) - X Start ≈ 710 */}
         <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-west-border md:pl-8 pt-8 md:pt-0 flex flex-col justify-center relative z-10">
             <div className="absolute -left-[17px] top-1/2 -translate-y-1/2 w-8 h-8 bg-west-bg border border-west-border rounded-full items-center justify-center hidden md:flex z-10">
                 <Activity className="w-4 h-4 text-west-muted" />

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterfaceWrapper from './components/ChatInterface';
@@ -16,7 +17,7 @@ const Toast = ({ message, onClose }: { message: string, onClose: () => void }) =
     }, [onClose]);
 
     return (
-        <div className="fixed top-4 right-4 z-[100] bg-west-panel border border-west-accent shadow-glow px-4 py-3 rounded-sm flex items-center gap-3 animate-in slide-in-from-right duration-300">
+        <div className="fixed top-4 right-4 z-[100] bg-west-panel border border-west-accent shadow-glow px-4 py-3 rounded-sm flex items-center gap-3 animate-in slide-in-from-right duration-300 backdrop-blur-md">
             <CheckCircle2 className="w-5 h-5 text-west-accent" />
             <span className="text-sm font-mono text-west-text">{message}</span>
             <button onClick={onClose} className="ml-2 text-west-muted hover:text-white"><XCircle className="w-4 h-4" /></button>
@@ -25,36 +26,59 @@ const Toast = ({ message, onClose }: { message: string, onClose: () => void }) =
 };
 
 const App: React.FC = () => {
+  // PERSISTENCE LAYER: Load View from LocalStorage
   const [currentView, setCurrentView] = useState<AppView>(() => {
       try {
-          const savedView = sessionStorage.getItem('delos_active_view');
+          const savedView = localStorage.getItem('delos_active_view');
           return savedView ? (savedView as AppView) : AppView.DASHBOARD;
       } catch { return AppView.DASHBOARD; }
   });
 
-  const [theme, setTheme] = useState<Theme>('dark');
+  // PERSISTENCE LAYER: Load Theme from LocalStorage
+  const [theme, setTheme] = useState<Theme>(() => {
+      try {
+          const savedTheme = localStorage.getItem('delos_theme');
+          if (savedTheme) return savedTheme as Theme;
+          // Default to system preference if no save found, or fallback to dark
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            return 'light';
+          }
+          return 'dark';
+      } catch { return 'dark'; }
+  });
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => setToastMsg(msg);
 
+  // Save View on change
   useEffect(() => {
-     sessionStorage.removeItem('delos_active_view');
-  }, []);
+     localStorage.setItem('delos_active_view', currentView);
+  }, [currentView]);
 
+  // Apply and Save Theme on change
   useEffect(() => {
     const applyTheme = () => {
       const body = document.body;
       body.classList.remove('light-theme', 'dark');
-      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const isDark = theme === 'dark' || (theme === 'system' && isSystemDark);
-      body.classList.add(isDark ? 'dark' : 'light-theme');
+      
+      let finalTheme = theme;
+      if (theme === 'system') {
+         finalTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+
+      body.classList.add(finalTheme === 'dark' ? 'dark' : 'light-theme');
+      localStorage.setItem('delos_theme', theme);
     };
+
     applyTheme();
+
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      mediaQuery.addEventListener('change', applyTheme);
-      return () => mediaQuery.removeEventListener('change', applyTheme);
+      const handler = () => applyTheme();
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
     }
   }, [theme]);
 
@@ -67,7 +91,7 @@ const App: React.FC = () => {
       case AppView.MEMORY_CORE:
         return <KnowledgeBase />;
       case AppView.SETTINGS:
-        return <Settings currentTheme={theme} onThemeChange={(t) => { setTheme(t); showToast(`Theme set to ${t.toUpperCase()}`); }} />;
+        return <Settings currentTheme={theme} onThemeChange={(t) => { setTheme(t); showToast(`Theme Protocol: ${t.toUpperCase()}`); }} />;
       case AppView.ABOUT:
         return <About />;
       default:
@@ -76,13 +100,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-screen bg-west-bg text-west-text overflow-hidden selection:bg-west-accent selection:text-white transition-colors duration-300 relative">
+    <div className="flex flex-col md:flex-row h-screen w-screen bg-west-bg text-west-text overflow-hidden selection:bg-west-accent selection:text-white transition-colors duration-500 relative">
       {!isAuthenticated && <BiometricAuth onComplete={() => setIsAuthenticated(true)} />}
       {isAuthenticated && (
         <>
             {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
             <Sidebar currentView={currentView} onChangeView={setCurrentView} />
-            <main className="flex-1 relative flex flex-col bg-west-bg/50 transition-colors duration-300 animate-in fade-in duration-1000 overflow-hidden pb-16 md:pb-0">
+            <main className="flex-1 relative flex flex-col bg-west-bg/50 transition-colors duration-500 animate-in fade-in duration-1000 overflow-hidden pb-16 md:pb-0">
                 <div className="h-1 w-full bg-gradient-to-r from-transparent via-west-accent/50 to-transparent shadow-glow z-10 shrink-0"></div>
                 <div className="flex-1 relative overflow-hidden flex flex-col">
                     {renderContent()}
