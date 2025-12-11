@@ -571,8 +571,8 @@ const KnowledgeBase: React.FC = () => {
                     className={`
                         flex items-center justify-center gap-2 px-6 py-2.5 border font-mono text-sm transition-all min-w-[180px] rounded-full font-bold tracking-widest shadow-lg
                         ${isFormOpen 
-                            ? 'border-red-500 text-red-500 bg-black hover:bg-red-950/30' 
-                            : 'bg-black border-white text-cyan-400 hover:bg-gray-900 hover:text-cyan-300 hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]'}
+                            ? 'border-red-500 text-red-500 bg-west-panel hover:bg-red-500/10' 
+                            : 'bg-west-panel border-west-accent text-west-accent hover:bg-west-accent hover:text-west-bg hover:shadow-glow'}
                     `}
                 >
                     {isFormOpen ? <span className="flex items-center gap-2"><X className="w-4 h-4" /> CANCEL</span> : <span className="flex items-center gap-2"><Plus className="w-4 h-4" /> NEW ENTRY</span>}
