@@ -71,6 +71,7 @@ export interface AuditLogEntry {
   details: string;
   status: 'SUCCESS' | 'BLOCKED' | 'WARNING';
   hash?: string; // Integrity check
+  complianceStandard?: 'ISO_42001' | 'ISO_27001' | 'ISO_27701' | 'EU_AI_ACT' | 'NIST_RMF';
 }
 
 export enum AppView {

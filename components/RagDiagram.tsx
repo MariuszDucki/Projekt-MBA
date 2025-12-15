@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Database, Search, MessageSquare, ShieldCheck, Sparkles, Cpu, Activity, FileText, Lock, Eye, Server, Zap } from 'lucide-react';
 
 const StepTooltip = ({ 
@@ -38,8 +38,32 @@ const RagDiagram: React.FC = () => {
     GOV_BOT: { x: 500, y: 220 }
   };
 
+  // Responsive Scaling Logic
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const parentWidth = containerRef.current.offsetWidth;
+        // Target width is 1000px + padding. If parent is smaller, scale down.
+        const targetWidth = 1050; 
+        const newScale = Math.min(1, parentWidth / targetWidth);
+        setScale(newScale);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial call
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="w-full bg-west-panel/30 border border-west-border rounded-xl relative overflow-hidden p-0 min-h-[400px] flex flex-col items-center justify-center select-none">
+    <div 
+        ref={containerRef}
+        className="w-full bg-west-panel/30 border border-west-border rounded-xl relative overflow-hidden p-0 h-[320px] flex items-center justify-center select-none"
+    >
       <div className="absolute inset-0 bg-west-bg/40 pointer-events-none"></div>
       
       {/* BACKGROUND GRID DECORATION */}
@@ -47,18 +71,13 @@ const RagDiagram: React.FC = () => {
            style={{ backgroundImage: 'radial-gradient(circle, var(--accent-color) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
       </div>
 
-      {/* Header Label */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 z-30">
-          <div className="p-1.5 bg-west-accent/10 rounded border border-west-accent/20 backdrop-blur-md">
-            <Cpu className="w-4 h-4 animate-pulse text-west-accent" />
-          </div>
-          <span className="text-west-accent font-mono text-xs tracking-widest font-bold opacity-80">
-              RAG PIPELINE VISUALIZER
-          </span>
-      </div>
+      {/* HEADER REMOVED TO PREVENT OVERLAP WITH PARENT COMPONENT TITLE */}
 
-      {/* MAIN DIAGRAM CONTAINER - Fixed Width to prevent alignment issues */}
-      <div className="relative w-[1000px] h-[300px]">
+      {/* MAIN DIAGRAM CONTAINER - Scalable Wrapper */}
+      <div 
+        className="relative w-[1000px] h-[300px] transition-transform duration-300 origin-center"
+        style={{ transform: `scale(${scale})` }}
+      >
         
         {/* === LAYER 1: SVG CONNECTIONS & ANIMATIONS === */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ overflow: 'visible' }}>

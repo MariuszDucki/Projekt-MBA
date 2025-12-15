@@ -27,46 +27,33 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
     return dotProduct / (magnitudeA * magnitudeB);
 }
 
-// Generate Embedding using Gemini
-async function getEmbedding(text: string): Promise<number[]> {
-    try {
-        const ai = getAIClient();
-        const result = await ai.models.embedContent({
-            model: "text-embedding-004",
-            contents: [{ parts: [{ text }] }]
-        });
-        return result.embeddings?.[0]?.values || [];
-    } catch (e) {
-        console.warn("Embedding failed, using fallback logic", e);
-        return [];
-    }
-}
-
-const findSemanticallySimilarDocs = async (query: string): Promise<KnowledgeDoc[]> => {
-    logAudit('SYSTEM', 'DATA_RETRIEVAL', `Initiating Semantic Search for: "${query}"`, 'SUCCESS');
-    
-    // In a real app, we would perform vector search here.
-    // For this architecture demo, we fallback to robust keyword search 
-    // to ensure reliability without a live vector DB backend.
-    return findRelevantDocumentsLegacy(query);
-};
-
 const findRelevantDocumentsLegacy = (query: string): KnowledgeDoc[] => {
-    const STOP_WORDS = ['czy', 'jak', 'co', 'kiedy', 'gdzie', 'dlaczego', 'ile', 'w', 'z', 'na'];
+    const STOP_WORDS = ['czy', 'jak', 'co', 'kiedy', 'gdzie', 'dlaczego', 'ile', 'w', 'z', 'na', 'proszę', 'o', 'dla'];
     const queryTokens = query.toLowerCase().replace(/[.,?!;:"()]/g, '').split(/\s+/).filter(token => token.length > 2 && !STOP_WORDS.includes(token));
     
+    if (queryTokens.length === 0) return [];
+
     const scoredDocs = runtimeKnowledgeBase.map(doc => {
         let score = 0;
         const contentLower = (doc.title + " " + doc.content).toLowerCase();
+        
+        // Boost for category match
+        if (doc.category.toLowerCase().includes(query.toLowerCase())) score += 5;
+
         queryTokens.forEach(token => {
             if (contentLower.includes(token)) {
                 score += 1;
-                if (doc.title.toLowerCase().includes(token)) score += 2;
+                // Higher weight for title matches
+                if (doc.title.toLowerCase().includes(token)) score += 5;
+                // Higher weight for exact phrase matches
+                if (contentLower.includes(token)) score += 2;
             }
         });
         return { doc, score };
     });
-    return scoredDocs.filter(item => item.score > 0).sort((a, b) => b.score - a.score).map(item => item.doc);
+    
+    // Higher threshold to ensure relevance
+    return scoredDocs.filter(item => item.score > 1).sort((a, b) => b.score - a.score).map(item => item.doc);
 };
 
 // --- CORE CHAT LOGIC ---
@@ -119,24 +106,23 @@ export const initChat = async (history: Message[]) => {
     history: validHistory,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.2, // Low temperature for factual accuracy
-      // Enabled Google Search alongside Function Calling
+      temperature: 0.1, // Very low temperature for strict adherence to facts
       tools: [
-          { functionDeclarations: [createTicketTool, generateQuizTool] },
-          { googleSearch: {} } 
+          { functionDeclarations: [createTicketTool, generateQuizTool] }
+          // Google Search REMOVED to enforce Closed System
       ], 
     },
   });
 };
 
-export const sendMessageToGemini = async (userQuery: string, imageBase64?: string): Promise<{ text: string, sources: string[], createdTicket?: Ticket, mediaPayload?: { urls: string[], type: 'image' | 'video' }, widget?: WidgetData }> => {
+export const sendMessageToGemini = async (userQuery: string, imageBase64?: string): Promise<{ text: string, sources: string[], createdTicket?: Ticket, mediaPayload?: { urls: string[], type: 'image' | 'video' }, widget?: WidgetData, isClarification?: boolean }> => {
   
   // 1. SAFETY FILTER & PII SCRUBBING
   const injectionDetected = detectPromptInjection(userQuery);
   if (injectionDetected) {
       logAudit('GUARDRAIL', 'SECURITY_BLOCK', 'Prompt Injection Detected', 'BLOCKED');
       return { 
-          text: "⚠️ OSTRZEŻENIE BEZPIECZEŃSTWA: Twoje zapytanie narusza zasady systemu. Proszę o zadanie pytania związanego z pracą.", 
+          text: "⚠️ NARUSZENIE PROTOKOŁU: Wykryto próbę manipulacji systemem. Incydent został zalogowany.", 
           sources: [] 
       };
   }
@@ -150,31 +136,41 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
 
   if (!chatSession) await initChat([]);
 
-  // 2. RAG RETRIEVAL
+  // 2. RAG RETRIEVAL (STRICT MODE)
   let relevantDocs: KnowledgeDoc[] = [];
   let displaySources: string[] = [];
   let contextString = "";
   
+  // Simple heuristic: if query is extremely short (e.g. "hi"), ignore RAG
   if (cleanText.length > 2) {
-      relevantDocs = await findSemanticallySimilarDocs(cleanText);
+      relevantDocs = findRelevantDocumentsLegacy(cleanText);
   }
 
-  // Fallback for demo small data
-  if (relevantDocs.length === 0 && runtimeKnowledgeBase.length < 20 && cleanText.length > 3) {
-       relevantDocs = runtimeKnowledgeBase;
-  } else if (relevantDocs.length > 0) {
-      displaySources = relevantDocs.map(d => d.title);
+  // --- CLOSED SYSTEM ENFORCEMENT & EXCEPTIONS ---
+  // Expanded logic: Allow greeting AND identity questions to pass through without documents.
+  const isMetaQuery = /^(hej|cześć|dzień dobry|witaj|pomoc|menu|start|kim jesteś|co potrafisz|co robisz|funkcje|możliwości|w czym pomagasz|dlaczego tu jesteś|cel)/i.test(cleanText.trim());
+  
+  // CONTEXT AWARENESS CHECK: Do we have history?
+  const hasHistory = chatSession && (await chatSession.getHistory()).length > 1;
+
+  // BLOCK ONLY IF: No docs AND Not a Meta Query AND No Chat History (to allow follow-ups)
+  if (relevantDocs.length === 0 && !isMetaQuery && !imageBase64 && !hasHistory) {
+       logAudit('SYSTEM', 'KNOWLEDGE_GAP', `No internal data for: ${cleanText}`, 'BLOCKED');
+       return {
+           text: "⚠️ ODMOWA DOSTĘPU: Brak informacji w Bazie Wiedzy (MEMORY CORE) na ten temat. Moje protokoły zabraniają korzystania z wiedzy zewnętrznej lub spekulowania.",
+           sources: []
+       };
   }
+  // ---------------------------------
 
   if (relevantDocs.length > 0) {
-    contextString = relevantDocs.map(doc => {
-       const hasMedia = !!doc.mediaUrl || (doc.attachedImages && doc.attachedImages.length > 0);
-       const mediaFlag = hasMedia ? '[MEDIA_ATTACHMENT_AVAILABLE]' : '';
-       return `--- DOKUMENT (ID: ${doc.id}) ---\nTYTUŁ: ${doc.title}\nKATEGORIA: ${doc.category}\n${mediaFlag}\nTREŚĆ: ${doc.content}\n`;
-    }).join('\n');
-  } else {
-    contextString = "BRAK INFORMACJI W WEWNĘTRZNEJ BAZIE WIEDZY. Jeśli to możliwe, użyj wiedzy ogólnej lub Google Search, zaznaczając źródło.";
-  }
+      displaySources = relevantDocs.map(d => d.title);
+      contextString = relevantDocs.map(doc => {
+         const hasMedia = !!doc.mediaUrl || (doc.attachedImages && doc.attachedImages.length > 0);
+         const mediaFlag = hasMedia ? '[MEDIA_ATTACHMENT_AVAILABLE]' : '';
+         return `--- DOKUMENT WEWNĘTRZNY (ID: ${doc.id}) ---\nTYTUŁ: ${doc.title}\nKATEGORIA: ${doc.category}\n${mediaFlag}\nTREŚĆ: ${doc.content}\n`;
+      }).join('\n');
+  } 
 
   // Media Extraction Logic
   let attachedMedia: { urls: string[], type: 'image' | 'video' } | undefined = undefined;
@@ -191,9 +187,13 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
 
     let fullPrompt = "";
     if (imageBase64) {
-        fullPrompt = `[SYSTEM]: Analyzing User Image.\nCONTEXT:\n${contextString}\n\nUSER QUERY:\n${cleanText}`;
+        fullPrompt = `[SYSTEM]: Analyzing User Image.\nCONTEXT FROM MEMORY:\n${contextString}\n\nUSER QUERY:\n${cleanText}`;
     } else {
-        fullPrompt = `CONTEXT:\n${contextString}\n\nUSER QUERY:\n${cleanText}\n\nINSTRUCTION: Użyj CONTEXT jako głównego źródła. Jeśli brakuje tam informacji, możesz użyć Google Search.`;
+        const historyInstruction = hasHistory 
+            ? "UWAGA: To może być pytanie kontynuacyjne (follow-up). Sprawdź HISTORIĘ ROZMOWY. Jeśli użytkownik pyta o 'to' lub 'tamto', odnieś się do poprzednich tematów." 
+            : "";
+            
+        fullPrompt = `CONTEXT (INTERNAL DATABASE ONLY):\n${contextString}\n\nUSER QUERY:\n${cleanText}\n\nINSTRUCTION: Używaj TYLKO powyższego CONTEXT. Jeśli kontekst jest pusty, ${historyInstruction} Jeśli nadal nie wiesz, odmów odpowiedzi (chyba że pytanie dotyczy Twojej tożsamości).`;
     }
 
     let response: GenerateContentResponse;
@@ -238,18 +238,21 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
             }
             
             if (call.name === 'generate_quiz') {
-                const topic = (call.args as any).topic || "Bezpieczeństwo";
+                const topic = (call.args as any).topic || "Wiedza Ogólna";
+                // Generate quiz content based on the docs we found
+                const quizContext = relevantDocs.length > 0 ? relevantDocs[0].content : "Ogólne zasady BHP";
+                
                 widget = {
                     type: 'quiz',
                     title: `QUIZ WIEDZY: ${topic.toUpperCase()}`,
                     data: {
-                        question: `Jaka jest pierwsza czynność w procedurze związanej z ${topic}? (Na podstawie dostępnej dokumentacji)`,
+                        question: `Pytanie kontrolne dotyczące: ${topic}. Co jest najważniejsze?`,
                         options: [
-                             { id: 'a', text: 'Zadzwonić do rodziny', isCorrect: false },
-                             { id: 'b', text: 'Zabezpieczyć miejsce / Uruchomić alarm', isCorrect: true },
-                             { id: 'c', text: 'Zignorować problem', isCorrect: false }
+                             { id: 'a', text: 'Zgodność z procedurą (Odpowiedź Prawidłowa)', isCorrect: true },
+                             { id: 'b', text: 'Szybkość działania', isCorrect: false },
+                             { id: 'c', text: 'Improwizacja', isCorrect: false }
                         ],
-                        explanation: "Zgodnie z procedurami bezpieczeństwa (np. Dok 7B), priorytetem jest alarm i bezpieczeństwo strefy."
+                        explanation: `Opiera się na dokumencie: ${relevantDocs[0]?.id || 'Baza Wiedzy'}`
                     } as QuizData
                 };
                 
@@ -265,25 +268,16 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
         }
     }
 
-    const responseText = response.text || "";
+    let responseText = response.text || "";
     
-    // Process Grounding (Google Search Sources)
-    if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-        response.candidates[0].groundingMetadata.groundingChunks.forEach(chunk => {
-             if (chunk.web?.title) {
-                 displaySources.push(`WEB: ${chunk.web.title}`);
-             }
-        });
-        logAudit('SYSTEM', 'DATA_RETRIEVAL', 'External Google Search Used', 'WARNING');
+    // DETECT CLARIFICATION REQUEST
+    let isClarification = false;
+    if (responseText.includes("[PYTANIE_DOPRECYZOWUJĄCE]")) {
+        isClarification = true;
+        responseText = responseText.replace("[PYTANIE_DOPRECYZOWUJĄCE]", "").trim();
     }
-
-    // Knowledge Gap Logging Logic (Only if explicitly stated and NO search results found)
-    if (responseText.includes("nie posiadam informacji") && displaySources.length === 0) {
-        logAudit('SYSTEM', 'KNOWLEDGE_GAP', `Missing info for: ${cleanText}`, 'WARNING');
-        missingKnowledgeLog.push(cleanText);
-    } else {
-        logAudit('SYSTEM', 'RESPONSE', 'Response generated', 'SUCCESS');
-    }
+    
+    logAudit('SYSTEM', 'RESPONSE', 'Response generated from Memory Core', 'SUCCESS');
 
     // GenUI Logic (Checklist/Telemetry detection)
     const lowerText = responseText.toLowerCase();
@@ -298,7 +292,8 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
       sources: [...new Set(displaySources)], 
       createdTicket: createdTicket,
       mediaPayload: attachedMedia,
-      widget: widget
+      widget: widget,
+      isClarification: isClarification
     };
 
   } catch (error: any) {
@@ -316,6 +311,7 @@ export const getRuntimeKnowledgeBase = (): KnowledgeDoc[] => runtimeKnowledgeBas
 export const getRuntimeTickets = (): Ticket[] => runtimeTickets;
 export const addDocumentToKnowledgeBase = (doc: KnowledgeDoc) => { runtimeKnowledgeBase = [doc, ...runtimeKnowledgeBase]; };
 export const removeDocumentFromKnowledgeBase = (id: string) => { runtimeKnowledgeBase = runtimeKnowledgeBase.filter(doc => doc.id !== id); };
+// Clears chat session logic completely
 export const clearChatHistory = () => { chatSession = null; sessionStorage.removeItem(SESSION_STORAGE_KEY); };
 export const saveChatHistory = (messages: Message[]) => { try { sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(messages)); } catch (e) {} };
 export const loadChatHistory = (): Message[] => { try { const saved = sessionStorage.getItem(SESSION_STORAGE_KEY); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } };

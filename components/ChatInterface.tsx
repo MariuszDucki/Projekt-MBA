@@ -11,6 +11,7 @@ interface ExtendedMessage extends Message {
   sources?: string[];
   widget?: WidgetData;
   isError?: boolean;
+  isClarification?: boolean; // New UX state for "Clarification Needed"
 }
 
 // --- WIDGET COMPONENTS (Glass Style) ---
@@ -223,15 +224,15 @@ const TicketCard = ({ ticket }: { ticket: any }) => (
 const WELCOME_MESSAGE: ExtendedMessage = {
     id: 'welcome',
     role: MessageRole.MODEL,
-    text: 'Cześć! Jestem Twoim Asystentem Szkoleniowym DELOS. Pomogę Ci wdrożyć się w nowe obowiązki, znaleźć procedury i sprawdzić wiedzę. W czym mogę pomóc?',
+    text: 'Cześć! Jestem Twoim Asystentem Szkoleniowym DELOS. Działam w trybie ZAMKNIĘTYM (Closed System) - korzystam wyłącznie z wewnętrznej bazy wiedzy. W czym mogę pomóc?',
     timestamp: Date.now()
 };
 
 // --- MODERN GLASS CARDS FOR PROMPTS ---
 const QuickPrompts = ({ onSelect }: { onSelect: (text: string) => void }) => {
     const prompts = [
-        { label: "ONBOARDING", icon: GraduationCap, text: "Rozpocznij proces onboardingu dla nowego pracownika produkcji." },
-        { label: "INSTRUKCJE BHP", icon: ShieldAlert, text: "Pokaż instrukcje postępowania w przypadku pożaru." },
+        { label: "ONBOARDING", icon: GraduationCap, text: "Procedura Startowa Linii Montażowej C" },
+        { label: "INSTRUKCJE BHP", icon: ShieldAlert, text: "Gospodarka Odpadami Produkcyjnymi - Chłodziwo" },
         { label: "SPRAWDŹ WIEDZĘ", icon: Trophy, text: "Zrób mi szybki quiz z zakresu bezpieczeństwa." },
     ];
 
@@ -317,6 +318,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // INITIALIZATION: Load from storage if available, otherwise start fresh
   useEffect(() => {
     const initializeSession = async () => {
         setIsThinking(true);
@@ -326,8 +328,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
             await initChat(savedHistory);
         } else {
             setMessages([WELCOME_MESSAGE]);
-            saveChatHistory([WELCOME_MESSAGE]);
-            await initChat([]);
+            await initChat([]); 
         }
         setIsThinking(false);
     };
@@ -376,7 +377,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
         };
         newHistory = [...messages, userMsg];
         setMessages(newHistory);
-        saveChatHistory(newHistory); 
+        saveChatHistory(newHistory);
     }
     
     setInput('');
@@ -396,12 +397,13 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
         sources: result.sources,
         ticketPayload: result.createdTicket,
         mediaPayload: result.mediaPayload,
-        widget: result.widget
+        widget: result.widget,
+        isClarification: result.isClarification
       };
 
       const updatedHistory = [...newHistory, botMsg];
       setMessages(updatedHistory);
-      saveChatHistory(updatedHistory); 
+      saveChatHistory(updatedHistory);
 
     } catch (error) {
       console.error("Chat Error", error);
@@ -421,7 +423,6 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
   const handleFeedback = (msgId: string, isPositive: boolean) => {
       const updatedMessages = messages.map(m => m.id === msgId ? { ...m, feedback: isPositive ? 'positive' : 'negative' } as ExtendedMessage : m);
       setMessages(updatedMessages);
-      saveChatHistory(updatedMessages);
       submitMessageFeedback(msgId, isPositive);
   };
 
@@ -549,7 +550,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
         <div className="absolute top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
             <div className="bg-west-panel/80 backdrop-blur-md px-4 py-2 rounded-full border border-west-border shadow-lg flex items-center gap-3 pointer-events-auto">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-mono font-bold tracking-widest text-west-text">TRAINING_MODE::ACTIVE</span>
+                <span className="text-[10px] font-mono font-bold tracking-widest text-west-text">TRAINING_MODE::ACTIVE (CLOSED SYSTEM)</span>
             </div>
             
             <button 
@@ -578,7 +579,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                     
                     <div className="text-center space-y-2 relative z-10">
                         <h2 className="text-4xl font-sans font-bold tracking-tight text-west-text drop-shadow-sm">DELOS ACADEMY</h2>
-                        <p className="font-mono text-west-accent text-sm tracking-widest uppercase opacity-80">Wybierz temat szkolenia...</p>
+                        <p className="font-mono text-west-accent text-sm tracking-widest uppercase opacity-80">System Zamknięty: Pytaj tylko o procedury wewnętrzne.</p>
                     </div>
 
                     <QuickPrompts onSelect={handleQuickPrompt} />
@@ -589,6 +590,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                 if (idx === 0) return null;
                 const isUser = msg.role === MessageRole.USER;
                 const isPlaying = playingMessageId === msg.id;
+                const isClarification = msg.isClarification;
                 
                 return (
                     <div 
@@ -606,7 +608,9 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                                 transition-all duration-300
                                 ${isUser 
                                     ? 'bg-west-bubbleUser border-west-glassBorder text-right rounded-br-sm hover:scale-[1.01]' 
-                                    : 'bg-west-bubbleSystem border-west-glassBorder text-left rounded-bl-sm hover:scale-[1.01]'}
+                                    : isClarification 
+                                        ? 'bg-yellow-500/10 border-yellow-500/30 text-left rounded-bl-sm hover:scale-[1.01]' // CLARIFICATION STYLE
+                                        : 'bg-west-bubbleSystem border-west-glassBorder text-left rounded-bl-sm hover:scale-[1.01]'}
                             `}
                         >
                             {/* Inner Highlight for Volume (Static) */}
@@ -614,9 +618,10 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
 
                             {/* Role Label */}
                             <div className={`mb-3 flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} opacity-60`}>
-                                <span className={`text-[10px] font-mono font-bold tracking-widest ${isUser ? 'text-west-accent' : 'text-west-muted'}`}>
-                                    {isUser ? 'PRACOWNIK' : 'MENTOR AI'}
+                                <span className={`text-[10px] font-mono font-bold tracking-widest ${isUser ? 'text-west-accent' : isClarification ? 'text-yellow-500' : 'text-west-muted'}`}>
+                                    {isUser ? 'PRACOWNIK' : isClarification ? 'DOPRECYZOWANIE' : 'MENTOR AI'}
                                 </span>
+                                {isClarification && <HelpCircle className="w-3 h-3 text-yellow-500 animate-pulse" />}
                             </div>
 
                             {/* Content */}
@@ -725,7 +730,7 @@ const ChatSession: React.FC<{ onSessionReset: () => void }> = ({ onSessionReset 
                  <div className="w-full max-w-4xl mx-auto mt-6 animate-pulse">
                     <div className="flex items-center gap-3 bg-west-panel/30 backdrop-blur-sm border border-west-border/50 px-4 py-2 rounded-full w-fit">
                         <Sparkles className="w-4 h-4 text-west-accent animate-spin-slow" />
-                        <span className="text-xs font-mono text-west-accent tracking-widest">ANALIZOWANIE WIEDZY...</span>
+                        <span className="text-xs font-mono text-west-accent tracking-widest">ANALIZOWANIE KONTEKSTU...</span>
                     </div>
                 </div>
             )}

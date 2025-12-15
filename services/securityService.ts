@@ -51,8 +51,19 @@ export const logAudit = (
     actor: 'USER' | 'SYSTEM' | 'GUARDRAIL',
     action: AuditLogEntry['action'],
     details: string,
-    status: 'SUCCESS' | 'BLOCKED' | 'WARNING'
+    status: 'SUCCESS' | 'BLOCKED' | 'WARNING',
+    standard?: AuditLogEntry['complianceStandard']
 ) => {
+    // Auto-tagging logic if not provided
+    let complianceTag = standard;
+    if (!complianceTag) {
+        if (action === 'SECURITY_BLOCK') complianceTag = 'NIST_RMF';
+        else if (action === 'DATA_RETRIEVAL' && status === 'WARNING') complianceTag = 'ISO_27001'; // External access
+        else if (details.includes('PII') || details.includes('Redacted')) complianceTag = 'ISO_27701';
+        else if (action === 'TOOL_EXECUTION') complianceTag = 'ISO_42001'; // Lifecycle / Operation
+        else complianceTag = 'EU_AI_ACT'; // General transparency
+    }
+
     const entry: AuditLogEntry = {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
@@ -60,7 +71,8 @@ export const logAudit = (
         action,
         details,
         status,
-        hash: Math.random().toString(36).substring(7) // Mock integrity hash
+        hash: Math.random().toString(36).substring(7), // Mock integrity hash
+        complianceStandard: complianceTag
     };
 
     try {
@@ -86,4 +98,16 @@ export const getAuditLog = (): AuditLogEntry[] => {
 
 export const clearAuditLog = () => {
     sessionStorage.removeItem(AUDIT_STORAGE_KEY);
+};
+
+// Mock Data Subject Access Request (DSAR) - ISO 27701
+export const exportUserData = () => {
+    logAudit('SYSTEM', 'DATA_RETRIEVAL', 'DSAR: User requested data export (Right to Portability)', 'SUCCESS', 'ISO_27701');
+    alert("ISO 27701: Data Subject Access Request initiated. Package downloading...");
+};
+
+export const deleteUserData = () => {
+    logAudit('SYSTEM', 'SECURITY_BLOCK', 'DSAR: User requested data deletion (Right to be Forgotten)', 'SUCCESS', 'ISO_27701');
+    alert("ISO 27701: Right to be Forgotten processed. Local logs purged.");
+    clearAuditLog();
 };
