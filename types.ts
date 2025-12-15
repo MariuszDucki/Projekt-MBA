@@ -58,6 +58,7 @@ export interface Ticket {
   location: string;
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  issueType: 'FAILURE' | 'KNOWLEDGE_GAP' | 'PROBLEM' | 'OTHER';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
   timestamp: string;
 }

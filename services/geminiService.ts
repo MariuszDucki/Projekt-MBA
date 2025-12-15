@@ -75,15 +75,22 @@ export const initChat = async (history: Message[]) => {
 
   const createTicketTool: FunctionDeclaration = {
     name: 'create_ticket',
-    description: 'Utwórz zgłoszenie dla eksperta/serwisu, gdy użytkownik zgłasza problem lub lukę w wiedzy.',
+    description: 'Utwórz zgłoszenie dla eksperta/serwisu, gdy użytkownik zgłasza problem, awarię lub lukę w wiedzy.',
     parameters: {
       type: Type.OBJECT,
       properties: {
-        location: { type: Type.STRING },
-        description: { type: Type.STRING },
-        priority: { type: Type.STRING, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] }
+        location: { type: Type.STRING, description: "Lokalizacja problemu (np. Hala A, Linia 3)" },
+        description: { type: Type.STRING, description: "Opis problemu" },
+        priority: { type: Type.STRING, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+        issueType: { 
+            type: Type.STRING, 
+            enum: ['FAILURE', 'KNOWLEDGE_GAP', 'PROBLEM', 'OTHER'],
+            description: "FAILURE = awaria sprzętu, KNOWLEDGE_GAP = brak wiedzy w bazie, PROBLEM = inny problem operacyjny" 
+        }
       },
-      required: ['location', 'description', 'priority']
+      // IMPORTANT: We keep required minimal in Schema to avoid API errors if AI is confident, 
+      // but System Instruction enforces prompting user for these details first.
+      required: ['description'] 
     }
   };
   
@@ -148,7 +155,7 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
 
   // --- CLOSED SYSTEM ENFORCEMENT & EXCEPTIONS ---
   // Expanded logic: Allow greeting AND identity questions to pass through without documents.
-  const isMetaQuery = /^(hej|cześć|dzień dobry|witaj|pomoc|menu|start|kim jesteś|co potrafisz|co robisz|funkcje|możliwości|w czym pomagasz|dlaczego tu jesteś|cel)/i.test(cleanText.trim());
+  const isMetaQuery = /^(hej|cześć|dzień dobry|witaj|pomoc|menu|start|kim jesteś|co potrafisz|co robisz|funkcje|możliwości|w czym pomagasz|dlaczego tu jesteś|cel|tak|nie|ok|dobrze|zrób to)/i.test(cleanText.trim());
   
   // CONTEXT AWARENESS CHECK: Do we have history?
   const hasHistory = chatSession && (await chatSession.getHistory()).length > 1;
@@ -216,11 +223,17 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
             
             if (call.name === 'create_ticket') {
                 const args = call.args as any;
+                // Apply defaults if AI decided to call it without args based on Anti-Loop protocol
+                const finalLocation = args.location || "Nieznana (General)";
+                const finalPriority = args.priority || "MEDIUM";
+                const finalIssueType = args.issueType || "PROBLEM";
+                
                 const newTicket: Ticket = {
                     id: `REQ-${Date.now().toString().slice(-6)}`,
-                    location: args.location || "System",
-                    description: args.description,
-                    priority: args.priority,
+                    location: finalLocation,
+                    description: args.description || "Zgłoszenie z czatu",
+                    priority: finalPriority,
+                    issueType: finalIssueType,
                     status: 'OPEN',
                     timestamp: new Date().toISOString()
                 };
@@ -231,7 +244,7 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
                     message: [{
                         functionResponse: {
                             name: call.name,
-                            response: { result: `Ticket created ID: ${newTicket.id}` }
+                            response: { result: `Ticket created ID: ${newTicket.id} with Priority: ${finalPriority} and Type: ${finalIssueType}` }
                         }
                     }]
                 });
@@ -272,7 +285,8 @@ export const sendMessageToGemini = async (userQuery: string, imageBase64?: strin
     
     // DETECT CLARIFICATION REQUEST
     let isClarification = false;
-    if (responseText.includes("[PYTANIE_DOPRECYZOWUJĄCE]")) {
+    if (responseText.includes("[PYTANIE_DOPRECYZOWUJĄCE]") || responseText.includes("?") && createdTicket === undefined) {
+        // Simple heuristic: if it asks a question and didn't create a ticket, it's likely clarification
         isClarification = true;
         responseText = responseText.replace("[PYTANIE_DOPRECYZOWUJĄCE]", "").trim();
     }

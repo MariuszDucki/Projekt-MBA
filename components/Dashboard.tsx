@@ -15,12 +15,12 @@ const statsData = [
 ];
 
 const activityData = [
-  { name: '08:00', queries: 12 },
-  { name: '10:00', queries: 45 },
-  { name: '12:00', queries: 38 },
-  { name: '14:00', queries: 60 },
-  { name: '16:00', queries: 25 },
-  { name: '18:00', queries: 10 },
+  { name: '10:00', queries: 20 },
+  { name: '12:00', queries: 65 },
+  { name: '14:00', queries: 45 },
+  { name: '16:00', queries: 90 },
+  { name: '18:00', queries: 55 },
+  { name: '20:00', queries: 15 },
 ];
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string }> = ({ title, value, icon: Icon, color }) => (
@@ -175,26 +175,30 @@ export const Dashboard: React.FC = () => {
         {/* Charts Section */}
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-8 transition-all duration-1000 transform-style-3d`}>
             
-            {/* Radar Chart Panel */}
+            {/* Radar Chart Panel - Matching Image Style (Tabbed) */}
             <div className={`
-                relative h-[350px] md:h-[450px] shadow-3d transition-all duration-1000 ease-in-out flex flex-col rounded-3xl backdrop-blur-2xl bg-west-panel border border-west-border
+                relative h-[380px] md:h-[450px] shadow-3d transition-all duration-1000 ease-in-out flex flex-col rounded-[2rem] rounded-tl-none backdrop-blur-2xl bg-west-panel border border-west-border overflow-hidden
                 ${isHoloMode ? 'rotate-y-6 rotate-x-6 scale-95 border-west-accent/40 bg-west-panel/50' : ''}
             `}>
-                 <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-3xl"></div>
-
-                <div className="absolute top-0 left-0 px-4 py-2 bg-west-border/30 text-[10px] font-mono text-west-text z-10 rounded-br-2xl border-r border-b border-west-border font-bold backdrop-blur-md">
-                    DATA.VIZ.001 // METRICS
+                {/* Visual Tab Header (CSS Trick for the cut corner/tab look) */}
+                <div className="absolute top-0 left-0 w-full h-[50px] border-b border-west-border pointer-events-none z-10"></div>
+                <div className="absolute -top-[1px] -left-[1px] z-20 bg-west-panel border-r border-b border-t border-l border-west-border rounded-br-2xl px-6 py-3 shadow-sm">
+                     <span className="text-[10px] font-mono font-bold text-west-text tracking-[0.15em] uppercase flex items-center gap-2">
+                        DATA.VIZ.001 // METRICS
+                     </span>
                 </div>
+
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
                 
-                <div className="flex-1 w-full pt-8 min-h-0 min-w-0 overflow-hidden relative" style={{ transform: isHoloMode ? 'translateZ(30px)' : 'none' }}>
+                <div className="flex-1 w-full pt-16 pb-4 px-4 min-h-0 min-w-0 overflow-hidden relative flex items-center justify-center" style={{ transform: isHoloMode ? 'translateZ(30px)' : 'none' }}>
                     {canRenderCharts && (
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="65%" data={statsData}>
-                                <PolarGrid stroke={gridColor} strokeOpacity={0.5} />
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={statsData}>
+                                <PolarGrid stroke={gridColor} strokeOpacity={0.4} strokeDasharray="4 4" gridType="polygon" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: textColor, fontSize: 11, fontFamily: 'monospace', fontWeight: 'bold' }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 150]} tick={false} axisLine={false} />
                                 <Radar
-                                    name="System"
+                                    name="System Metrics"
                                     dataKey="A"
                                     stroke={chartColor}
                                     strokeWidth={3}
@@ -212,23 +216,27 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Line Chart Panel */}
+            {/* Line Chart Panel - Matching Image Style (Tabbed) */}
             <div className={`
-                relative h-[350px] md:h-[450px] shadow-3d transition-all duration-1000 ease-in-out flex flex-col rounded-3xl backdrop-blur-2xl bg-west-panel border border-west-border
+                relative h-[380px] md:h-[450px] shadow-3d transition-all duration-1000 ease-in-out flex flex-col rounded-[2rem] rounded-tl-none backdrop-blur-2xl bg-west-panel border border-west-border overflow-hidden
                 ${isHoloMode ? 'rotate-y-[-6deg] rotate-x-6 scale-95 border-west-accent/40 bg-west-panel/50' : ''}
             `}>
-                <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none rounded-3xl"></div>
-
-                <div className="absolute top-0 left-0 px-4 py-2 bg-west-border/30 text-[10px] font-mono text-west-text z-10 rounded-br-2xl border-r border-b border-west-border font-bold backdrop-blur-md">
-                    DATA.VIZ.002 // TRAFFIC
+                 {/* Visual Tab Header */}
+                 <div className="absolute top-0 left-0 w-full h-[50px] border-b border-west-border pointer-events-none z-10"></div>
+                 <div className="absolute -top-[1px] -left-[1px] z-20 bg-west-panel border-r border-b border-t border-l border-west-border rounded-br-2xl px-6 py-3 shadow-sm">
+                     <span className="text-[10px] font-mono font-bold text-west-text tracking-[0.15em] uppercase flex items-center gap-2">
+                        DATA.VIZ.002 // TRAFFIC
+                     </span>
                 </div>
+
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
                 
-                <div className="flex-1 w-full pt-10 min-h-0 min-w-0 overflow-hidden relative pr-4" style={{ transform: isHoloMode ? 'translateZ(30px)' : 'none' }}>
+                <div className="flex-1 w-full pt-20 pb-6 px-2 min-h-0 min-w-0 overflow-hidden relative pr-6" style={{ transform: isHoloMode ? 'translateZ(30px)' : 'none' }}>
                     {canRenderCharts && (
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={activityData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} strokeOpacity={0.2} vertical={false} />
-                                <XAxis dataKey="name" stroke={textColor} tick={{fill: textColor, fontSize: 10, fontFamily: 'monospace'}} axisLine={false} tickLine={false} dy={10} />
+                            <LineChart data={activityData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} strokeOpacity={0.15} vertical={false} />
+                                <XAxis dataKey="name" stroke={textColor} tick={{fill: textColor, fontSize: 10, fontFamily: 'monospace'}} axisLine={false} tickLine={false} dy={15} />
                                 <YAxis stroke={textColor} tick={{fill: textColor, fontSize: 10}} width={30} axisLine={false} tickLine={false} />
                                 <Tooltip 
                                     contentStyle={{ backgroundColor: tooltipStyle.backgroundColor, borderColor: tooltipStyle.borderColor, color: tooltipStyle.color, borderRadius: '12px', backdropFilter: 'blur(12px)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}
@@ -239,9 +247,9 @@ export const Dashboard: React.FC = () => {
                                     type="monotone" 
                                     dataKey="queries" 
                                     stroke={chartColor} 
-                                    strokeWidth={3} 
-                                    dot={{fill: tooltipStyle.backgroundColor, stroke: chartColor, strokeWidth: 2, r: 4}} 
-                                    activeDot={{r: 6, fill: chartColor}} 
+                                    strokeWidth={4} 
+                                    dot={{fill: tooltipStyle.backgroundColor, stroke: chartColor, strokeWidth: 2, r: 5}} 
+                                    activeDot={{r: 7, fill: chartColor, strokeWidth: 0}} 
                                     animationDuration={2000}
                                 />
                             </LineChart>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Volume2, StopCircle, X, Loader2, Ticket as TicketIcon, Paperclip, ChevronLeft, ChevronRight, RotateCcw, CheckSquare, BarChart3, ArrowDown, Sparkles, GraduationCap, Trophy, HelpCircle, ShieldAlert, ThumbsUp, ThumbsDown, Copy, Check, FileSearch } from 'lucide-react';
+import { Send, Mic, MicOff, Volume2, StopCircle, X, Loader2, Ticket as TicketIcon, Paperclip, ChevronLeft, ChevronRight, RotateCcw, CheckSquare, BarChart3, ArrowDown, Sparkles, GraduationCap, Trophy, HelpCircle, ShieldAlert, ThumbsUp, ThumbsDown, Copy, Check, FileSearch, Users } from 'lucide-react';
 import { Message, MessageRole, WidgetData, QuizData } from '../types';
 import { sendMessageToGemini, initChat, generateVoiceAudio, clearChatHistory, loadChatHistory, saveChatHistory, submitMessageFeedback } from '../services/geminiService';
 import Markdown from 'react-markdown';
@@ -231,7 +231,7 @@ const WELCOME_MESSAGE: ExtendedMessage = {
 // --- MODERN GLASS CARDS FOR PROMPTS ---
 const QuickPrompts = ({ onSelect }: { onSelect: (text: string) => void }) => {
     const prompts = [
-        { label: "ONBOARDING", icon: GraduationCap, text: "Procedura Startowa Linii Montażowej C" },
+        { label: "ONBOARDING START", icon: Users, text: "Jestem nowym pracownikiem. Rozpocznij procedurę onboardingu (Dzień 1)." },
         { label: "INSTRUKCJE BHP", icon: ShieldAlert, text: "Gospodarka Odpadami Produkcyjnymi - Chłodziwo" },
         { label: "SPRAWDŹ WIEDZĘ", icon: Trophy, text: "Zrób mi szybki quiz z zakresu bezpieczeństwa." },
     ];

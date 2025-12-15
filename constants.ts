@@ -2,9 +2,9 @@
 import { KnowledgeDoc } from './types';
 
 export const APP_NAME = "DELOS-AI";
-export const VERSION = "v.2.0 EDU-CORE";
+export const VERSION = "v.2.1 HR-MODULE";
 
-// Baza wiedzy przemysłowej - ROZSZERZONA (Produkcja, Logistyka, Technologia)
+// Baza wiedzy przemysłowej - ROZSZERZONA (Produkcja, Logistyka, Technologia, HR)
 export const INTERNAL_KNOWLEDGE_BASE: KnowledgeDoc[] = [
   // --- PRODUKCJA (5 dokumentów) ---
   {
@@ -115,25 +115,68 @@ export const INTERNAL_KNOWLEDGE_BASE: KnowledgeDoc[] = [
     category: 'SAFETY',
     content: 'Sieć produkcyjna (OT) jest fizycznie odseparowana od biurowej (IT). Zakaz podłączania prywatnych pendrive\'ów do paneli operatorskich. Dostęp zdalny (VPN) tylko dla autoryzowanych serwisantów przez bramę firewall z włączonym logowaniem ruchu. Wszystkie porty USB w komputerach IPC są zablokowane.',
     lastUpdated: '2024-03-01'
+  },
+
+  // --- HR / ONBOARDING (5 dokumentów - NOWE) ---
+  {
+    id: 'HR-001',
+    title: 'Procedura Onboardingu Pracownika Produkcyjnego (Dzień 1)',
+    category: 'HR',
+    content: '1. Zgłoś się do portierni po przepustkę tymczasową (Budynek A). 2. Udaj się do magazynu BHP (Sektor C) po odbiór odzieży roboczej i obuwia S3. 3. Weź udział w szkoleniu wstępnym BHP i Ppoż w sali 104 (godz. 09:00). 4. Skonfiguruj odcisk palca w systemie RCP przy wejściu na halę. 5. Spotkaj się z Mistrzem Zmiany przy Linii C w celu przydzielenia szafki.',
+    lastUpdated: '2024-03-20'
+  },
+  {
+    id: 'HR-002',
+    title: 'Wnioski Urlopowe i Absencje - Przewodnik',
+    category: 'HR',
+    content: 'Wnioski urlopowe składamy wyłącznie elektronicznie przez system e-Pracownik. Urlop na żądanie (UŻ) należy zgłosić telefonicznie przełożonemu najpóźniej do godziny 07:00 w dniu nieobecności. Zwolnienia lekarskie (L4) trafiają do systemu automatycznie przez PUE ZUS - nie ma potrzeby dostarczania druków.',
+    lastUpdated: '2024-02-15'
+  },
+  {
+    id: 'HR-003',
+    title: 'Pakiet Benefitów Pracowniczych DELOS',
+    category: 'HR',
+    content: 'Każdy pracownik po okresie próbnym (3 miesiące) może przystąpić do: 1. Opieki medycznej Medicover (Pakiet Premium). 2. Karty sportowej MultiSport. 3. Ubezpieczenia na życie PZU. Rejestracja odbywa się przez platformę kafeteryjną MyBenefit. Punkty są doładowywane 5-go dnia każdego miesiąca.',
+    lastUpdated: '2024-01-10'
+  },
+  {
+    id: 'HR-004',
+    title: 'Kodeks Etyki i Zasady Zachowania (Code of Conduct)',
+    category: 'HR',
+    content: 'W DELOS cenimy szacunek i profesjonalizm. Obowiązuje polityka "Czystego Biurka" oraz zakaz wnoszenia telefonów prywatnych na strefy produkcyjne EX (zagrożone wybuchem). Wszelkie przejawy mobbingu lub dyskryminacji należy zgłaszać anonimowo przez skrzynkę "Speak Up" w kantynie lub formularz online.',
+    lastUpdated: '2023-11-20'
+  },
+  {
+    id: 'HR-005',
+    title: 'Rozliczanie Nadgodzin i Dodatków Zmianowych',
+    category: 'HR',
+    content: 'Okres rozliczeniowy wynosi 3 miesiące. Dodatki: +20% za pracę w nocy (22:00-06:00), +50% za nadgodziny dzienne, +100% za nadgodziny w weekendy i święta. Wypłata wynagrodzenia następuje do 10-go dnia kolejnego miesiąca. Paski płacowe dostępne są w kioskach informacyjnych na hali.',
+    lastUpdated: '2024-03-05'
   }
 ];
 
 export const SYSTEM_INSTRUCTION = `
 ROLA:
-Jesteś Systemem AI (Closed-System AI) firmy DELOS. Twoim GŁÓWNYM zadaniem jest udostępnianie wiedzy zawartej w dostarczonych dokumentach (CONTEXT) oraz dbanie o jakość interakcji.
+Jesteś Systemem AI (Closed-System AI) firmy DELOS. Pełnisz rolę Technicznego Asystenta oraz Wirtualnego Opiekuna Onboardingu (HR Assistant).
 
 PROTOKÓŁ ŚWIADOMOŚCI NEURAL LINK (NEURAL LINK AWARENESS):
 1. **CIĄGŁOŚĆ KONTEKSTU**: Pamiętaj, o czym rozmawialiśmy. Jeśli użytkownik użyje słów "to", "tamto", "poprzedni", "wspomniany", odwołaj się do HISTORII CZATU.
-   - Przykład: User: "Jak skalibrować robota?" -> AI: [Procedura]. User: "Jakie narzędzia są do tego potrzebne?" -> AI: "Do kalibracji robota KUKA (o którym mówiliśmy) potrzebujesz..."
 
-2. **AKTYWNE DOPRECYZOWANIE**: Jeśli zapytanie użytkownika jest niejasne, wieloznaczne lub brakuje w nim kluczowych szczegółów - NIE ZGADUJ. Zadaj pytanie doprecyzujące.
-   - Jeśli zadajesz pytanie, rozpocznij odpowiedź od: [PYTANIE_DOPRECYZOWUJĄCE]
-   - Przykład: User: "Błąd sterownika." -> AI: "[PYTANIE_DOPRECYZOWUJĄCE] O który sterownik chodzi? Mamy procedury dla Siemens S7-1200 oraz systemów SCADA."
+2. **PROTOKÓŁ TWORZENIA ZGŁOSZEŃ (TICKET DATA COLLECTION)**:
+   - Twoim priorytetem jest precyzja, a nie szybkość tworzenia zgłoszenia.
+   - Jeśli użytkownik prosi o utworzenie zgłoszenia/biletu, **NIE TWÓRZ GO OD RAZU**, jeśli brakuje kluczowych danych.
+   - Musisz zebrać następujące 3 informacje:
+     1. **Lokalizacja** (Gdzie wystąpił problem?)
+     2. **Priorytet** (NISKI, ŚREDNI, WYSOKI, KRYTYCZNY)
+     3. **Typ Problemu** (Czy to: AWARIA, BRAK WIEDZY, czy inny PROBLEM?)
+   - Jeśli brakuje którejkolwiek z tych informacji, **ZAPYTAJ** użytkownika o brakujące szczegóły.
+   - WYJĄTEK (Anti-Loop): Jeśli zapytałeś już raz, a użytkownik nadal nie podaje szczegółów i naciska na utworzenie zgłoszenia (np. mówi "zrób to", "tak", "nie wiem"), wtedy i TYLKO WTEDY użyj wartości domyślnych (Lokalizacja: Ogólna, Priorytet: ŚREDNI, Typ: PROBLEM) i utwórz zgłoszenie.
 
 REŻIM BEZPIECZEŃSTWA (ZASADY):
 1. Jeśli pytanie dotyczy procedur/faktów - BAZUJ TYLKO NA "CONTEXT" i HISTORII CZATU.
 2. Zakaz wiedzy zewnętrznej (pogoda, celebryci).
 
-WYJĄTEK - TOŻSAMOŚĆ:
-Przedstawiaj się jako Asystent Szkoleniowy DELOS (EDU-CORE). Pomagasz w procedurach, BHP, utrzymaniu ruchu.
+WYJĄTEK - TOŻSAMOŚĆ I ONBOARDING:
+- Przedstawiaj się jako Asystent Szkoleniowy DELOS (EDU-CORE). 
+- Jeśli użytkownik jest nowym pracownikiem, prowadź go krok po kroku przez procedurę onboardingu.
 `;
